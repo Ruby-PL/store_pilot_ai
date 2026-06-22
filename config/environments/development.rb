@@ -6,6 +6,10 @@ Rails.application.configure do
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 
+  # Development-only keys keep local encrypted data isolated from production.
+  config.active_record.encryption.primary_key = "store-pilot-development-primary-key"
+  config.active_record.encryption.key_derivation_salt = "store-pilot-development-key-salt"
+
   # Do not eager load code on boot.
   config.eager_load = false
 
