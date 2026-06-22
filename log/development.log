@@ -1,0 +1,4 @@
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='StorePilotAi'*/[0m
+  [1m[35m (259.6ms)[0m  [1m[35mCREATE DATABASE "store_pilot_ai_development" ENCODING = 'unicode' /*application='StorePilotAi'*/[0m
+  [1m[35mSQL (0.1ms)[0m  [1m[35mSET search_path TO public /*application='StorePilotAi'*/[0m
+  [1m[35m (110.0ms)[0m  [1m[35mCREATE DATABASE "store_pilot_ai_test" ENCODING = 'unicode' /*application='StorePilotAi'*/[0m
