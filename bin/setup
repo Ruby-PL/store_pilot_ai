@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require "fileutils"
+require_relative "load_env"
 
 APP_ROOT = File.expand_path("..", __dir__)
 
@@ -15,10 +16,24 @@ FileUtils.chdir APP_ROOT do
   puts "== Installing dependencies =="
   system("bundle check") || system!("bundle install")
 
-  # puts "\n== Copying sample files =="
-  # unless File.exist?("config/database.yml")
-  #   FileUtils.cp "config/database.yml.sample", "config/database.yml"
-  # end
+  unless system("docker compose version", out: File::NULL, err: File::NULL)
+    abort <<~MESSAGE
+
+      Docker Compose is required for the local PostgreSQL and Redis services.
+      Install Docker Desktop (or Docker Engine with Compose) and run bin/setup again.
+    MESSAGE
+  end
+
+  puts "\n== Starting PostgreSQL and Redis =="
+  system! "docker", "compose", "up", "--detach", "--wait"
+
+  postgres_port = ENV.fetch("POSTGRES_PORT", "5432")
+  redis_port = ENV.fetch("REDIS_PORT", "6379")
+  postgres_user = ENV.fetch("POSTGRES_USER", "store_pilot_ai")
+  postgres_password = ENV.fetch("POSTGRES_PASSWORD", "store_pilot_ai")
+
+  ENV["DATABASE_URL"] ||= "postgresql://#{postgres_user}:#{postgres_password}@127.0.0.1:#{postgres_port}/store_pilot_ai_development"
+  ENV["REDIS_URL"] ||= "redis://127.0.0.1:#{redis_port}/0"
 
   puts "\n== Preparing database =="
   system! "bin/rails db:prepare"
@@ -30,6 +45,6 @@ FileUtils.chdir APP_ROOT do
   unless ARGV.include?("--skip-server")
     puts "\n== Starting development server =="
     STDOUT.flush # flush the output before exec(2) so that it displays
-    exec "bin/dev"
+    exec({ "DATABASE_URL" => ENV.fetch("DATABASE_URL"), "REDIS_URL" => ENV.fetch("REDIS_URL") }, "bin/dev")
   end
 end
