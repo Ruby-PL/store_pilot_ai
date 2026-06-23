@@ -52,6 +52,7 @@ present in the shell take precedence.
 | `SHOPIFY_APP_URL` | `http://localhost:3005` | Public app URL registered in Shopify |
 | `SHOPIFY_REDIRECT_URI` | `http://localhost:3005/auth/shopify/callback` | OAuth callback URL registered in Shopify |
 | `SHOPIFY_SCOPES` | `read_products,read_orders` | Required Shopify Admin API scopes |
+| `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
 
 For example, when port 5432 is already in use:
 

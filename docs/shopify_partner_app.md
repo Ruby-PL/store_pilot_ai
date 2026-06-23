@@ -31,6 +31,7 @@ SHOPIFY_API_SECRET=your_client_secret
 SHOPIFY_APP_URL=http://localhost:3005
 SHOPIFY_REDIRECT_URI=http://localhost:3005/auth/shopify/callback
 SHOPIFY_SCOPES=read_products,read_orders
+SHOPIFY_REQUIRE_CREDENTIALS=false
 ```
 
 `SHOPIFY_API_KEY` is the public client ID. `SHOPIFY_API_SECRET` is sensitive and must never be committed.
@@ -42,6 +43,15 @@ shopify app config link
 ```
 
 Do not commit a secret value. Shopify app secrets belong in `.env` or Rails credentials.
+
+Rails reads Shopify configuration from environment variables in
+`config/initializers/shopify.rb` and exposes it at:
+
+```ruby
+Rails.application.config.x.shopify
+```
+
+Set `SHOPIFY_REQUIRE_CREDENTIALS=true` in environments where the app must fail fast when the Shopify client ID or secret is missing.
 
 ## Scope rationale
 
