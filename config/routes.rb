@@ -1,4 +1,8 @@
 Rails.application.routes.draw do
+  get "auth/shopify", to: "shopify/oauth#install", as: :shopify_install
+  get "auth/shopify/callback", to: "shopify/oauth#callback", as: :shopify_oauth_callback
+  get "dashboard", to: "shopify/dashboard#show", as: :dashboard
+
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
