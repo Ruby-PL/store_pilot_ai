@@ -31,6 +31,7 @@ SHOPIFY_API_SECRET=your_client_secret
 SHOPIFY_APP_URL=http://localhost:3005
 SHOPIFY_REDIRECT_URI=http://localhost:3005/auth/shopify/callback
 SHOPIFY_SCOPES=read_products,read_orders
+SHOPIFY_API_VERSION=2026-04
 SHOPIFY_REQUIRE_CREDENTIALS=false
 ```
 

@@ -51,15 +51,21 @@ module Shopify
       state = install_state
 
       with_access_token_response("shpat_secret_access_token") do
-        assert_difference -> { Store.count }, 1 do
-          get shopify_oauth_callback_path(
-            oauth_query(shop: "north-pine.myshopify.com", code: "auth_code", state:)
-          )
+        with_shop_metadata_sync do
+          assert_difference -> { Store.count }, 1 do
+            get shopify_oauth_callback_path(
+              oauth_query(shop: "north-pine.myshopify.com", code: "auth_code", state:)
+            )
+          end
         end
       end
 
       store = Store.find_by!(shopify_domain: "north-pine.myshopify.com")
       assert_equal "shpat_secret_access_token", store.access_token
+      assert_equal "North Pine", store.name
+      assert_equal "owner@north-pine.example", store.owner_email
+      assert_equal "EUR", store.currency
+      assert_equal "Basic", store.shopify_plan
       assert_redirected_to dashboard_path(shop: "north-pine.myshopify.com")
       assert_includes response.headers["Set-Cookie"], "shopify_oauth_state=;"
     end
@@ -99,6 +105,23 @@ module Shopify
       yield
     ensure
       Shopify::Oauth::AccessTokenClient.define_singleton_method(:call, original_method)
+    end
+
+    def with_shop_metadata_sync
+      original_method = Shopify::ShopMetadataSync.method(:call)
+      Shopify::ShopMetadataSync.define_singleton_method(:call) do |store|
+        store.update!(
+          name: "North Pine",
+          owner_email: "owner@north-pine.example",
+          currency: "EUR",
+          shopify_plan: "Basic"
+        )
+        store
+      end
+
+      yield
+    ensure
+      Shopify::ShopMetadataSync.define_singleton_method(:call, original_method)
     end
 
     def start_install

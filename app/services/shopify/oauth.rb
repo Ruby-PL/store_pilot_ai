@@ -12,6 +12,7 @@ module Shopify
     InvalidHmacError = Class.new(Error)
     InvalidStateError = Class.new(Error)
     TokenExchangeError = Class.new(Error)
+    MetadataSyncError = Class.new(Error)
 
     class Shop
       DOMAIN_FORMAT = Store::SHOPIFY_DOMAIN_FORMAT
@@ -161,7 +162,9 @@ module Shopify
         store.user ||= user_for_shop
         store.access_token = token
         store.save!
-        store
+        Shopify::ShopMetadataSync.call(store)
+      rescue Shopify::Admin::GraphqlClient::Error, Shopify::ShopMetadataSync::Error => error
+        raise MetadataSyncError, error.message
       end
 
       def user_for_shop

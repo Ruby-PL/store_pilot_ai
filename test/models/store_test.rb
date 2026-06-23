@@ -40,6 +40,41 @@ class StoreTest < ActiveSupport::TestCase
     assert_includes store.errors[:access_token], "can't be blank"
   end
 
+  test "allows valid shop metadata" do
+    store = @user.stores.build(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      name: "North Pine",
+      owner_email: "owner@north-pine.example",
+      currency: "EUR",
+      shopify_plan: "Basic"
+    )
+
+    assert_predicate store, :valid?
+  end
+
+  test "requires a valid owner email when present" do
+    store = @user.stores.build(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      owner_email: "not-an-email"
+    )
+
+    assert_not store.valid?
+    assert_includes store.errors[:owner_email], "is invalid"
+  end
+
+  test "requires a three-letter currency when present" do
+    store = @user.stores.build(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      currency: "EURO"
+    )
+
+    assert_not store.valid?
+    assert_includes store.errors[:currency], "is the wrong length (should be 3 characters)"
+  end
+
   test "encrypts the access token at rest" do
     token = "shpat_do_not_store_in_plaintext"
     store = @user.stores.create!(shopify_domain: "north-pine.myshopify.com", access_token: token)
