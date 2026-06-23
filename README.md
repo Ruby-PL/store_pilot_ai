@@ -46,7 +46,13 @@ present in the shell take precedence.
 | `POSTGRES_PASSWORD` | `store_pilot_ai` | Local PostgreSQL password |
 | `DATABASE_URL` | Local development database URL | Rails database connection |
 | `REDIS_URL` | `redis://127.0.0.1:6379/0` | Redis connection |
-| `PORT` | `3000` | Rails server port |
+| `PORT` | `3005` | Rails server port |
+| `SHOPIFY_API_KEY` | Blank | Shopify app client ID |
+| `SHOPIFY_API_SECRET` | Blank | Shopify app client secret |
+| `SHOPIFY_APP_URL` | `http://localhost:3005` | Public app URL registered in Shopify |
+| `SHOPIFY_REDIRECT_URI` | `http://localhost:3005/auth/shopify/callback` | OAuth callback URL registered in Shopify |
+| `SHOPIFY_SCOPES` | `read_products,read_orders` | Required Shopify Admin API scopes |
+| `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
 
 For example, when port 5432 is already in use:
 
@@ -56,6 +62,9 @@ POSTGRES_PORT=5433 DATABASE_URL=postgresql://store_pilot_ai:store_pilot_ai@127.0
 
 Production uses `STORE_PILOT_AI_DATABASE_PASSWORD` for the primary database
 password. Never commit `.env`, Rails master keys, or credential keys.
+
+Shopify Partner app setup and required scopes are documented in
+[docs/shopify_partner_app.md](docs/shopify_partner_app.md).
 
 ## Useful commands
 
