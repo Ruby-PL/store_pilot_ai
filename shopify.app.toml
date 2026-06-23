@@ -1,0 +1,20 @@
+name = "StorePilot AI"
+client_id = "replace-with-shopify-client-id"
+application_url = "http://localhost:3005"
+embedded = false
+handle = "storepilot-ai"
+web_directories = ["."]
+
+[access_scopes]
+scopes = "read_products,read_orders"
+
+[auth]
+redirect_urls = [
+  "http://localhost:3005/auth/shopify/callback"
+]
+
+[webhooks]
+api_version = "2026-04"
+
+[build]
+automatically_update_urls_on_dev = false

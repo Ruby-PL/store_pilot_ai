@@ -1,0 +1,6 @@
+roles = ["frontend", "backend"]
+auth_callback_path = "/auth/shopify/callback"
+port = 3005
+
+[commands]
+dev = "bin/dev"
