@@ -12,4 +12,10 @@ class Store < ApplicationRecord
     uniqueness: { case_sensitive: false },
     format: { with: SHOPIFY_DOMAIN_FORMAT }
   validates :access_token, presence: true
+  validates :currency,
+    length: { is: 3 },
+    allow_blank: true
+  validates :owner_email,
+    format: { with: URI::MailTo::EMAIL_REGEXP },
+    allow_blank: true
 end

@@ -7,6 +7,7 @@ shopify.api_secret = ENV["SHOPIFY_API_SECRET"].presence
 shopify.app_url = ENV.fetch("SHOPIFY_APP_URL", "http://localhost:#{ENV.fetch("PORT", 3005)}")
 shopify.redirect_uri = ENV.fetch("SHOPIFY_REDIRECT_URI", "#{shopify.app_url}/auth/shopify/callback")
 shopify.scopes = ENV.fetch("SHOPIFY_SCOPES", "read_products,read_orders").split(",").map(&:strip).reject(&:blank?)
+shopify.api_version = ENV.fetch("SHOPIFY_API_VERSION", "2026-04")
 
 shopify.missing_credentials = {
   api_key: shopify.api_key,
