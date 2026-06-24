@@ -92,6 +92,17 @@ class StoreTest < ActiveSupport::TestCase
     assert_includes store.errors[:currency], "is the wrong length (should be 3 characters)"
   end
 
+  test "requires a non-negative product count" do
+    store = @user.stores.build(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      products_count: -1
+    )
+
+    assert_not store.valid?
+    assert_includes store.errors[:products_count], "must be greater than or equal to 0"
+  end
+
   test "encrypts the access token at rest" do
     token = "shpat_do_not_store_in_plaintext"
     store = @user.stores.create!(shopify_domain: "north-pine.myshopify.com", access_token: token)
