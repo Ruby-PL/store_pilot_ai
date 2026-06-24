@@ -40,6 +40,23 @@ class StoreTest < ActiveSupport::TestCase
     assert_includes store.errors[:access_token], "can't be blank"
   end
 
+  test "does not require an access token when inactive" do
+    store = @user.stores.build(shopify_domain: "north-pine.myshopify.com", access_token: nil, active: false)
+
+    assert_predicate store, :valid?
+  end
+
+  test "mark uninstalled deactivates store and clears access token" do
+    store = @user.stores.create!(shopify_domain: "north-pine.myshopify.com", access_token: "shpat_secret")
+    uninstalled_at = Time.zone.local(2026, 6, 24, 9, 15)
+
+    store.mark_uninstalled!(at: uninstalled_at)
+
+    assert_not store.reload.active?
+    assert_nil store.access_token
+    assert_equal uninstalled_at, store.uninstalled_at
+  end
+
   test "allows valid shop metadata" do
     store = @user.stores.build(
       shopify_domain: "north-pine.myshopify.com",

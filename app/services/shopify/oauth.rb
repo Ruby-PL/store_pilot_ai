@@ -161,6 +161,8 @@ module Shopify
         store = Store.find_or_initialize_by(shopify_domain: shop)
         store.user ||= user_for_shop
         store.access_token = token
+        store.active = true
+        store.uninstalled_at = nil
         store.save!
         Shopify::ShopMetadataSync.call(store)
       rescue Shopify::Admin::GraphqlClient::Error, Shopify::ShopMetadataSync::Error => error
