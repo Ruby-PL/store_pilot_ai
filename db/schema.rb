@@ -10,6 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
+ActiveRecord::Schema[8.1].define(version: 2026_06_25_091000) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_catalog.plpgsql"
+
+  create_table "order_snapshots", force: :cascade do |t|
+    t.datetime "captured_at", null: false
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.datetime "processed_at", null: false
+    t.string "shopify_order_id", null: false
+    t.bigint "store_id", null: false
+    t.decimal "total_price", precision: 12, scale: 2, default: "0.0", null: false
+    t.datetime "updated_at", null: false
+    t.index ["store_id", "shopify_order_id"], name: "index_order_snapshots_on_store_id_and_shopify_order_id"
+    t.index ["store_id"], name: "index_order_snapshots_on_store_id"
 ActiveRecord::Schema[8.1].define(version: 2026_06_25_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
@@ -57,6 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_090000) do
     t.index "lower((email)::text)", name: "index_users_on_lower_email", unique: true
   end
 
+  add_foreign_key "order_snapshots", "stores"
   add_foreign_key "product_snapshots", "stores"
   add_foreign_key "stores", "users"
 end
