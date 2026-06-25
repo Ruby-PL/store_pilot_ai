@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  root "dashboard#show"
+
   get "auth/shopify", to: "shopify/oauth#install", as: :shopify_install
   get "auth/shopify/callback", to: "shopify/oauth#callback", as: :shopify_oauth_callback
   post "webhooks/shopify/app_uninstalled", to: "shopify/webhooks#app_uninstalled", as: :shopify_app_uninstalled_webhook
