@@ -26,6 +26,12 @@ module Shopify
       assert_not WebhookVerifier.valid?(payload: payload.gsub("north-pine", "south-pine"), hmac: hmac_for(payload))
     end
 
+    test "rejects missing Shopify webhook HMAC" do
+      payload = { shop_domain: "north-pine.myshopify.com" }.to_json
+
+      assert_not WebhookVerifier.valid?(payload:, hmac: nil)
+    end
+
     private
 
     def hmac_for(payload)
