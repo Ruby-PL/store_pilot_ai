@@ -81,6 +81,20 @@ module Shopify
       assert_includes logs, "snapshots_created=1"
     end
 
+    test "uses Shopify pagination cursor for additional product pages" do
+      captured_variables = []
+
+      with_graphql_responses(
+        product_page(1, has_next_page: true, end_cursor: "cursor-1"),
+        product_page(1),
+        handler: ->(_query, variables) { captured_variables << variables }
+      ) do
+        Shopify::ProductSync.call(@store)
+      end
+
+      assert_equal [ { cursor: nil }, { cursor: "cursor-1" } ], captured_variables
+    end
+
     test "raises sync error when Shopify response is invalid" do
       with_graphql_responses({ "products" => { "nodes" => [] } }) do
         assert_raises Shopify::ProductSync::Error do
@@ -91,11 +105,12 @@ module Shopify
 
     private
 
-    def with_graphql_responses(*responses)
+    def with_graphql_responses(*responses, handler: ->(_query, _variables) { })
       original_method = Shopify::Admin::GraphqlClient.instance_method(:query)
       remaining_responses = responses.dup
 
-      Shopify::Admin::GraphqlClient.define_method(:query) do |*|
+      Shopify::Admin::GraphqlClient.define_method(:query) do |query, variables: {}|
+        handler.call(query, variables)
         remaining_responses.shift || raise("Unexpected extra GraphQL request")
       end
 

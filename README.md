@@ -31,6 +31,27 @@ docker compose down
 PostgreSQL data and Redis data are retained in named Docker volumes. Run
 `docker compose down --volumes` only when you intentionally want to erase both.
 
+## Background jobs
+
+StorePilot uses Rails Active Job with Solid Queue for background processing.
+Redis is available in the local Docker stack for app features that need it, and
+Solid Queue stores jobs in the Rails queue database.
+
+In development, `bin/dev` starts Rails with Solid Queue running inside Puma by
+default. To run workers separately instead:
+
+```bash
+SOLID_QUEUE_IN_PUMA=false bin/dev
+bin/jobs
+```
+
+Product and order Shopify syncs can be queued with:
+
+```ruby
+Shopify::ProductSyncJob.perform_later(store)
+Shopify::OrderSyncJob.perform_later(store)
+```
+
 ## Environment variables
 
 The local setup has working defaults, so creating an `.env` file is optional.
@@ -54,6 +75,9 @@ present in the shell take precedence.
 | `SHOPIFY_SCOPES` | `read_products,read_orders` | Required Shopify Admin API scopes |
 | `SHOPIFY_API_VERSION` | `2026-04` | Shopify Admin API version |
 | `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
+| `SENTRY_DSN` | Blank | Sentry project DSN for production error monitoring |
+| `SENTRY_RELEASE` | Blank | Optional release identifier attached to Sentry events |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | Optional Sentry performance tracing sample rate |
 
 For example, when port 5432 is already in use:
 
@@ -66,6 +90,19 @@ password. Never commit `.env`, Rails master keys, or credential keys.
 
 Shopify Partner app setup and required scopes are documented in
 [docs/shopify_partner_app.md](docs/shopify_partner_app.md).
+
+## Error monitoring
+
+Production exception monitoring uses Sentry when `SENTRY_DSN` is present.
+Without a DSN, Sentry is not initialized and local development stays quiet.
+
+To verify a production Sentry project after setting `SENTRY_DSN`, run:
+
+```bash
+bin/rails runner 'ErrorMonitoring.capture_exception(StandardError.new("Sentry smoke test"), context: { source: "manual" })'
+```
+
+The exception should appear in the configured Sentry project.
 
 ## Useful commands
 

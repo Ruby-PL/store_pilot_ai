@@ -53,6 +53,23 @@ module Shopify
       assert_includes logs, "orders_currency=EUR"
     end
 
+    test "stores zero totals when Shopify returns no recent orders" do
+      with_graphql_responses(order_page([])) do
+        result = Shopify::OrderSync.call(@store, since: Time.zone.local(2026, 5, 25))
+
+        assert_equal 0, result.orders_count
+        assert_equal BigDecimal("0"), result.orders_total_price
+        assert_equal "EUR", result.orders_currency
+      end
+
+      @store.reload
+
+      assert_equal 0, @store.orders_count
+      assert_equal BigDecimal("0"), @store.orders_total_price
+      assert_equal "EUR", @store.orders_currency
+      assert_predicate @store.orders_synced_at, :present?
+    end
+
     test "raises sync error when Shopify response is invalid" do
       with_graphql_responses({ "orders" => { "nodes" => [] } }) do
         assert_raises Shopify::OrderSync::Error do
