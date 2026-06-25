@@ -20,6 +20,7 @@ module Shopify
         assert_equal 3, result.orders_count
         assert_equal BigDecimal("36.0"), result.orders_total_price
         assert_equal "EUR", result.orders_currency
+        assert_equal 3, result.snapshots_created
       end
 
       @store.reload
@@ -28,6 +29,35 @@ module Shopify
       assert_equal BigDecimal("36.0"), @store.orders_total_price
       assert_equal "EUR", @store.orders_currency
       assert_predicate @store.orders_synced_at, :present?
+    end
+
+    test "creates order snapshots from synced Shopify orders" do
+      processed_at = "2026-06-24T10:15:00Z"
+
+      with_graphql_responses(
+        order_page([
+          {
+            "id" => "gid://shopify/Order/123",
+            "processedAt" => processed_at,
+            "totalPriceSet" => {
+              "shopMoney" => {
+                "amount" => "42.50",
+                "currencyCode" => "EUR"
+              }
+            }
+          }
+        ])
+      ) do
+        Shopify::OrderSync.call(@store, since: Time.zone.local(2026, 5, 25))
+      end
+
+      snapshot = @store.order_snapshots.sole
+
+      assert_equal "gid://shopify/Order/123", snapshot.shopify_order_id
+      assert_equal BigDecimal("42.50"), snapshot.total_price
+      assert_equal "EUR", snapshot.currency
+      assert_equal Time.zone.parse(processed_at), snapshot.processed_at
+      assert_predicate snapshot.captured_at, :present?
     end
 
     test "queries orders from the last 30 days" do
@@ -51,6 +81,30 @@ module Shopify
       assert_includes logs, "orders_count=2"
       assert_includes logs, "orders_total_price=20.0"
       assert_includes logs, "orders_currency=EUR"
+      assert_includes logs, "snapshots_created=2"
+    end
+
+    test "handles duplicate Shopify orders safely across syncs" do
+      order = {
+        "id" => "gid://shopify/Order/duplicate",
+        "processedAt" => "2026-06-24T10:00:00Z",
+        "totalPriceSet" => {
+          "shopMoney" => {
+            "amount" => "10.00",
+            "currencyCode" => "EUR"
+          }
+        }
+      }
+
+      with_graphql_responses(order_page([ order ])) do
+        Shopify::OrderSync.call(@store, since: Time.zone.local(2026, 5, 25))
+      end
+
+      with_graphql_responses(order_page([ order ])) do
+        Shopify::OrderSync.call(@store, since: Time.zone.local(2026, 5, 25))
+      end
+
+      assert_equal 2, @store.order_snapshots.where(shopify_order_id: "gid://shopify/Order/duplicate").count
     end
 
     test "stores zero totals when Shopify returns no recent orders" do
@@ -94,10 +148,12 @@ module Shopify
       Shopify::Admin::GraphqlClient.define_method(:query, original_method)
     end
 
-    def order_page(amounts, has_next_page: false, end_cursor: nil)
-      {
-        "orders" => {
-          "nodes" => amounts.map.with_index do |amount, index|
+    def order_page(orders_or_amounts, has_next_page: false, end_cursor: nil)
+      orders =
+        if orders_or_amounts.first.is_a?(Hash)
+          orders_or_amounts
+        else
+          orders_or_amounts.map.with_index do |amount, index|
             {
               "id" => "gid://shopify/Order/#{index}",
               "processedAt" => "2026-06-24T10:00:00Z",
@@ -108,7 +164,12 @@ module Shopify
                 }
               }
             }
-          end,
+          end
+        end
+
+      {
+        "orders" => {
+          "nodes" => orders,
           "pageInfo" => {
             "hasNextPage" => has_next_page,
             "endCursor" => end_cursor
