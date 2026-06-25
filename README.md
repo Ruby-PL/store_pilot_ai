@@ -54,6 +54,9 @@ present in the shell take precedence.
 | `SHOPIFY_SCOPES` | `read_products,read_orders` | Required Shopify Admin API scopes |
 | `SHOPIFY_API_VERSION` | `2026-04` | Shopify Admin API version |
 | `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
+| `SENTRY_DSN` | Blank | Sentry project DSN for production error monitoring |
+| `SENTRY_RELEASE` | Blank | Optional release identifier attached to Sentry events |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | Optional Sentry performance tracing sample rate |
 
 For example, when port 5432 is already in use:
 
@@ -66,6 +69,19 @@ password. Never commit `.env`, Rails master keys, or credential keys.
 
 Shopify Partner app setup and required scopes are documented in
 [docs/shopify_partner_app.md](docs/shopify_partner_app.md).
+
+## Error monitoring
+
+Production exception monitoring uses Sentry when `SENTRY_DSN` is present.
+Without a DSN, Sentry is not initialized and local development stays quiet.
+
+To verify a production Sentry project after setting `SENTRY_DSN`, run:
+
+```bash
+bin/rails runner 'ErrorMonitoring.capture_exception(StandardError.new("Sentry smoke test"), context: { source: "manual" })'
+```
+
+The exception should appear in the configured Sentry project.
 
 ## Useful commands
 
