@@ -3,4 +3,8 @@ require_relative "load_env"
 
 port = ENV.fetch("PORT", "3000")
 
-exec "./bin/rails", "server", "--port", port, *ARGV
+env = {
+  "SOLID_QUEUE_IN_PUMA" => ENV.fetch("SOLID_QUEUE_IN_PUMA", "true")
+}
+
+exec env, "./bin/rails", "server", "--port", port, *ARGV
