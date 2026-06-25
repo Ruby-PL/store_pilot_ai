@@ -29,10 +29,10 @@ class DashboardController < ApplicationController
     revenue = BigDecimal(store.orders_total_price.to_s)
 
     [
-      { label: "Products", value: store.products_count.to_i.to_s },
-      { label: "Orders", value: orders_count.to_s },
-      { label: "Revenue", value: format_money(revenue, currency) },
-      { label: "Avg. order value", value: orders_count.positive? ? format_money(revenue / orders_count, currency) : "Not available" }
+      { label: "Product count", value: store.products_count.to_i.to_s },
+      { label: "Order count", value: orders_count.to_s },
+      { label: "Revenue total", value: format_money(revenue, currency) },
+      { label: "Average order value", value: orders_count.positive? ? format_money(revenue / orders_count, currency) : "Not available" }
     ]
   end
 

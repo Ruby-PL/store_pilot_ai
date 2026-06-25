@@ -30,16 +30,20 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "North Pine"
     assert_select ".status-pill", "Connected"
     assert_select ".metric-card", 4
-    assert_select ".metric-card strong", "12"
-    assert_select ".metric-card strong", "4"
-    assert_select ".metric-card strong", "USD 120.00"
-    assert_select ".metric-card strong", "USD 30.00"
+    assert_stat_card "Product count", "12"
+    assert_stat_card "Order count", "4"
+    assert_stat_card "Revenue total", "USD 120.00"
+    assert_stat_card "Average order value", "USD 30.00"
     assert_select ".empty-state", 0
     assert_select "dd", "north-pine.myshopify.com"
     assert_select "dd", "Connected"
   end
 
   private
+
+  def assert_stat_card(label, value)
+    assert_select ".metric-card", text: /#{Regexp.escape(label)}.*#{Regexp.escape(value)}/m
+  end
 
   def create_store(attributes = {})
     user = User.create!(email: "merchant-#{SecureRandom.hex(4)}@example.com")

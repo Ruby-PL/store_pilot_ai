@@ -31,6 +31,27 @@ docker compose down
 PostgreSQL data and Redis data are retained in named Docker volumes. Run
 `docker compose down --volumes` only when you intentionally want to erase both.
 
+## Background jobs
+
+StorePilot uses Rails Active Job with Solid Queue for background processing.
+Redis is available in the local Docker stack for app features that need it, and
+Solid Queue stores jobs in the Rails queue database.
+
+In development, `bin/dev` starts Rails with Solid Queue running inside Puma by
+default. To run workers separately instead:
+
+```bash
+SOLID_QUEUE_IN_PUMA=false bin/dev
+bin/jobs
+```
+
+Product and order Shopify syncs can be queued with:
+
+```ruby
+Shopify::ProductSyncJob.perform_later(store)
+Shopify::OrderSyncJob.perform_later(store)
+```
+
 ## Environment variables
 
 The local setup has working defaults, so creating an `.env` file is optional.
