@@ -103,6 +103,30 @@ class StoreTest < ActiveSupport::TestCase
     assert_includes store.errors[:products_count], "must be greater than or equal to 0"
   end
 
+  test "requires non-negative order statistics" do
+    store = @user.stores.build(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      orders_count: -1,
+      orders_total_price: -1
+    )
+
+    assert_not store.valid?
+    assert_includes store.errors[:orders_count], "must be greater than or equal to 0"
+    assert_includes store.errors[:orders_total_price], "must be greater than or equal to 0"
+  end
+
+  test "requires a three-letter order currency when present" do
+    store = @user.stores.build(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      orders_currency: "EURO"
+    )
+
+    assert_not store.valid?
+    assert_includes store.errors[:orders_currency], "is the wrong length (should be 3 characters)"
+  end
+
   test "encrypts the access token at rest" do
     token = "shpat_do_not_store_in_plaintext"
     store = @user.stores.create!(shopify_domain: "north-pine.myshopify.com", access_token: token)
