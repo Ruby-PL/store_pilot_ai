@@ -25,9 +25,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_091000) do
     t.datetime "updated_at", null: false
     t.index ["store_id", "shopify_order_id"], name: "index_order_snapshots_on_store_id_and_shopify_order_id"
     t.index ["store_id"], name: "index_order_snapshots_on_store_id"
-ActiveRecord::Schema[8.1].define(version: 2026_06_25_090000) do
-  # These are extensions that must be enabled in order to support this database
-  enable_extension "pg_catalog.plpgsql"
+  end
 
   create_table "product_snapshots", force: :cascade do |t|
     t.datetime "captured_at", null: false
