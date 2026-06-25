@@ -25,6 +25,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_091000) do
     t.datetime "updated_at", null: false
     t.index ["store_id", "shopify_order_id"], name: "index_order_snapshots_on_store_id_and_shopify_order_id"
     t.index ["store_id"], name: "index_order_snapshots_on_store_id"
+ActiveRecord::Schema[8.1].define(version: 2026_06_25_090000) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_catalog.plpgsql"
+
+  create_table "product_snapshots", force: :cascade do |t|
+    t.datetime "captured_at", null: false
+    t.datetime "created_at", null: false
+    t.integer "inventory_quantity", default: 0, null: false
+    t.decimal "price", precision: 12, scale: 2, default: "0.0", null: false
+    t.string "shopify_product_id", null: false
+    t.string "status"
+    t.bigint "store_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["store_id", "shopify_product_id"], name: "index_product_snapshots_on_store_id_and_shopify_product_id"
+    t.index ["store_id"], name: "index_product_snapshots_on_store_id"
   end
 
   create_table "stores", force: :cascade do |t|
@@ -57,5 +73,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_091000) do
   end
 
   add_foreign_key "order_snapshots", "stores"
+  add_foreign_key "product_snapshots", "stores"
   add_foreign_key "stores", "users"
 end

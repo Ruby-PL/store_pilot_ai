@@ -96,6 +96,32 @@ module Shopify
       assert_equal 0, Store.count
     end
 
+    test "callback updates an existing store installation" do
+      user = User.create!(email: "existing-merchant@example.com")
+      store = user.stores.create!(
+        shopify_domain: "north-pine.myshopify.com",
+        access_token: "old_token",
+        name: "Old Name"
+      )
+      state = install_state
+
+      with_access_token_response("new_token") do
+        with_shop_metadata_sync do
+          assert_no_difference -> { Store.count } do
+            get shopify_oauth_callback_path(
+              oauth_query(shop: "north-pine.myshopify.com", code: "auth_code", state:)
+            )
+          end
+        end
+      end
+
+      store.reload
+
+      assert_equal "new_token", store.access_token
+      assert_equal "North Pine", store.name
+      assert_redirected_to dashboard_path(shop: "north-pine.myshopify.com")
+    end
+
     private
 
     def with_access_token_response(token)
