@@ -17,6 +17,13 @@ class Store < ApplicationRecord
     allow_blank: true
   validates :products_count,
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :orders_count,
+    numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :orders_total_price,
+    numericality: { greater_than_or_equal_to: 0 }
+  validates :orders_currency,
+    length: { is: 3 },
+    allow_blank: true
   validates :owner_email,
     format: { with: URI::MailTo::EMAIL_REGEXP },
     allow_blank: true
