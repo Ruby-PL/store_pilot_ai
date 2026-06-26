@@ -72,7 +72,7 @@ present in the shell take precedence.
 | `SHOPIFY_API_SECRET` | Blank | Shopify app client secret |
 | `SHOPIFY_APP_URL` | `http://localhost:3005` | Public app URL registered in Shopify |
 | `SHOPIFY_REDIRECT_URI` | `http://localhost:3005/auth/shopify/callback` | OAuth callback URL registered in Shopify |
-| `SHOPIFY_SCOPES` | `read_products,read_orders` | Required Shopify Admin API scopes |
+| `SHOPIFY_SCOPES` | `read_products,write_products,read_orders` | Required Shopify Admin API scopes |
 | `SHOPIFY_API_VERSION` | `2026-04` | Shopify Admin API version |
 | `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
 | `SENTRY_DSN` | Blank | Sentry project DSN for production error monitoring |
@@ -90,6 +90,20 @@ password. Never commit `.env`, Rails master keys, or credential keys.
 
 Shopify Partner app setup and required scopes are documented in
 [docs/shopify_partner_app.md](docs/shopify_partner_app.md).
+
+Deployment architecture, environment split, and service choices are documented
+in [docs/deployment.md](docs/deployment.md).
+
+## Demo Shopify products
+
+After installing the app into a development store with `write_products`, seed
+dummy products with:
+
+```bash
+SHOPIFY_SHOP=your-store.myshopify.com script/seed_shopify_products
+```
+
+Use `COUNT=12` or `PREFIX="Demo"` to customize the generated products.
 
 ## Error monitoring
 
