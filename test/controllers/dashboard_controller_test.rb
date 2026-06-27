@@ -37,6 +37,38 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".empty-state", 0
     assert_select "dd", "north-pine.myshopify.com"
     assert_select "dd", "Connected"
+    assert_select ".sync-form .sync-button", /Run sync/
+  end
+
+  test "renders dashboard path used after OAuth redirect" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+
+    get dashboard_path(shop: store.shopify_domain)
+
+    assert_response :success
+    assert_select "h1", "North Pine"
+    assert_select ".status-pill", "Connected"
+  end
+
+  test "queues product and order sync jobs from the dashboard" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+
+    assert_enqueued_with(job: Shopify::ProductSyncJob, args: [ store ]) do
+      assert_enqueued_with(job: Shopify::OrderSyncJob, args: [ store ]) do
+        post dashboard_sync_path(shop: store.shopify_domain)
+      end
+    end
+
+    assert_redirected_to dashboard_path(shop: store.shopify_domain)
+    follow_redirect!
+    assert_response :success
+    assert_select ".flash-banner.notice", /Sync queued for north-pine\.myshopify\.com\./
   end
 
   private

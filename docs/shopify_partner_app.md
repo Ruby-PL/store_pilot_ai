@@ -12,7 +12,7 @@ Configure the app in the Shopify Dev Dashboard with these values for local devel
 | Embedded in Shopify admin | Off |
 | Preferences URL | Leave empty |
 | Webhooks API version | `2026-04` |
-| Required scopes | `read_products,read_orders` |
+| Required scopes | `read_products,write_products,read_orders` |
 | Optional scopes | Leave empty |
 | Legacy install flow | Off |
 | Redirect URL | `http://localhost:3005/auth/shopify/callback` |
@@ -30,7 +30,7 @@ SHOPIFY_API_KEY=your_client_id
 SHOPIFY_API_SECRET=your_client_secret
 SHOPIFY_APP_URL=http://localhost:3005
 SHOPIFY_REDIRECT_URI=http://localhost:3005/auth/shopify/callback
-SHOPIFY_SCOPES=read_products,read_orders
+SHOPIFY_SCOPES=read_products,write_products,read_orders
 SHOPIFY_API_VERSION=2026-04
 SHOPIFY_REQUIRE_CREDENTIALS=false
 ```
@@ -57,6 +57,7 @@ Set `SHOPIFY_REQUIRE_CREDENTIALS=true` in environments where the app must fail f
 ## Scope rationale
 
 - `read_products` is needed for product sync/import work.
+- `write_products` is needed for local demo product seeding.
 - `read_orders` is needed for reading recent order data for analytics.
 
 Additional scopes should be added only when a ticket requires the app to access more Shopify resources.

@@ -41,8 +41,19 @@
       </div>
       <div class="top-actions">
         <span class="status-pill <%= connected ? "connected" : "disconnected" %>"><%= connected ? "Connected" : "Not connected" %></span>
+        <%= form_with url: dashboard_sync_path(shop: @store&.shopify_domain), method: :post, class: "sync-form", local: true do %>
+          <%= button_tag type: "submit", class: "primary-button sync-button", disabled: !connected do %>
+            <span aria-hidden="true">↻</span>Run sync
+          <% end %>
+        <% end %>
       </div>
     </header>
+
+    <% if flash[:notice].present? || flash[:alert].present? %>
+      <section class="flash-banner <%= flash[:alert].present? ? "alert" : "notice" %>">
+        <p><%= flash[:notice].presence || flash[:alert] %></p>
+      </section>
+    <% end %>
 
     <section class="ai-brief" id="sync-status">
       <div class="ai-icon">

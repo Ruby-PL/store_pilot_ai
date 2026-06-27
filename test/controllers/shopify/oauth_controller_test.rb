@@ -6,6 +6,7 @@ module Shopify
   class OauthControllerTest < ActionDispatch::IntegrationTest
     setup do
       @shopify_config = Rails.application.config.x.shopify
+      @original_cache = Rails.cache
       @previous_config = {
         api_key: @shopify_config.api_key,
         api_secret: @shopify_config.api_secret,
@@ -13,6 +14,8 @@ module Shopify
         redirect_uri: @shopify_config.redirect_uri,
         credentials_configured: @shopify_config.credentials_configured
       }
+
+      Rails.cache = ActiveSupport::Cache::MemoryStore.new
 
       @shopify_config.api_key = "test_client_id"
       @shopify_config.api_secret = "test_client_secret"
@@ -22,6 +25,8 @@ module Shopify
     end
 
     teardown do
+      Rails.cache = @original_cache
+
       @previous_config.each do |name, value|
         @shopify_config.public_send("#{name}=", value)
       end
@@ -68,6 +73,24 @@ module Shopify
       assert_equal "Basic", store.shopify_plan
       assert_redirected_to dashboard_path(shop: "north-pine.myshopify.com")
       assert_includes response.headers["Set-Cookie"], "shopify_oauth_state=;"
+    end
+
+    test "install and callback work with cached OAuth state" do
+      state = install_state
+
+      assert_not_nil Rails.cache.read(oauth_state_cache_key(state))
+
+      with_access_token_response("shpat_secret_access_token") do
+        with_shop_metadata_sync do
+          get shopify_oauth_callback_path(
+            oauth_query(shop: "north-pine.myshopify.com", code: "auth_code", state:)
+          )
+        end
+      end
+
+      assert_response :redirect
+      assert_nil Rails.cache.read(oauth_state_cache_key(state))
+      assert_equal "north-pine.myshopify.com", Store.last.shopify_domain
     end
 
     test "callback rejects invalid hmac" do
@@ -177,6 +200,10 @@ module Shopify
     def hmac_for(query)
       message = query.sort.map { |key, value| "#{key}=#{value}" }.join("&")
       OpenSSL::HMAC.hexdigest("sha256", @shopify_config.api_secret, message)
+    end
+
+    def oauth_state_cache_key(state)
+      "shopify:oauth:state:#{state}"
     end
   end
 end

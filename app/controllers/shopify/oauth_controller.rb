@@ -11,6 +11,7 @@ module Shopify
       return head :bad_request unless shop
 
       state = SecureRandom.hex(24)
+      Rails.cache.write(oauth_state_cache_key(state), state, expires_in: 15.minutes)
       cookies.signed[:shopify_oauth_state] = {
         value: state,
         httponly: true,
@@ -24,11 +25,14 @@ module Shopify
     def callback
       return render_credentials_error unless shopify_config.credentials_configured
 
+      state = request.query_parameters["state"].to_s
+      cached_state = Rails.cache.read(oauth_state_cache_key(state))
       installation = Shopify::Oauth::CallbackHandler.call(
         query_parameters: request.query_parameters,
-        state_cookie: cookies.signed[:shopify_oauth_state]
+        state_cookie: cached_state
       )
 
+      Rails.cache.delete(oauth_state_cache_key(state))
       cookies.delete(:shopify_oauth_state)
 
       redirect_to dashboard_redirect_url(installation.store)
@@ -50,6 +54,10 @@ module Shopify
 
     def render_credentials_error
       render plain: "Shopify credentials are not configured", status: :service_unavailable
+    end
+
+    def oauth_state_cache_key(state)
+      "shopify:oauth:state:#{state}"
     end
   end
 end

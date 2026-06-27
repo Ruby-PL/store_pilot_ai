@@ -1,0 +1,238 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../bin/load_env"
+require_relative "../config/environment"
+require "json"
+require "net/http"
+require "securerandom"
+require "uri"
+
+shop = Shopify::Oauth::Shop.sanitize(ENV["SHOPIFY_SHOP"] || ARGV.first)
+abort "Usage: SHOPIFY_SHOP=your-store.myshopify.com script/seed_shopify_store" if shop.blank?
+
+store = Store.find_by(shopify_domain: shop)
+abort "No connected store found for #{shop}. Install the app through OAuth first." if store.blank?
+abort "Store #{shop} is inactive. Reinstall the app before seeding data." unless store.active?
+
+api_version = Rails.application.config.x.shopify.api_version
+count = ENV.fetch("COUNT", "6").to_i
+variant_count = [ ENV.fetch("VARIANTS_PER_PRODUCT", "2").to_i, 1 ].max
+collection_count = [ ENV.fetch("COLLECTION_COUNT", "2").to_i, 1 ].max
+order_count = [ ENV.fetch("ORDER_COUNT", "5").to_i, 1 ].max
+prefix = ENV.fetch("PREFIX", "StorePilot Demo")
+
+PRODUCT_TYPES = [ "Accessories", "Home", "Apparel", "Wellness", "Lifestyle" ].freeze
+COLLECTION_NAMES = [ "Featured", "Best Sellers", "Clearance", "New Arrivals" ].freeze
+SIZE_LABELS = [ "Small", "Medium", "Large", "XL" ].freeze
+
+class ShopifySeeder
+  def initialize(store:, api_version:, prefix:, count:, variant_count:, collection_count:, order_count:)
+    @store = store
+    @api_version = api_version
+    @prefix = prefix
+    @count = count
+    @variant_count = variant_count
+    @collection_count = collection_count
+    @order_count = order_count
+  end
+
+  def call
+    seeded_products = seed_products
+    seeded_collections = seed_collections(seeded_products)
+    seed_orders(seeded_products)
+
+    puts "Done."
+    puts "Created #{seeded_products.size} products, #{seeded_collections.size} collections and #{order_count} orders."
+    puts "Run Shopify::ProductSync and Shopify::OrderSync after seeding to update StorePilot data."
+  end
+
+  private
+
+  attr_reader :store, :api_version, :prefix, :count, :variant_count, :collection_count, :order_count
+
+  def seed_products
+    Array.new(count) do |index|
+      create_product(index)
+    end.compact
+  end
+
+  def create_product(index)
+    price_base = 14.0 + (index * 4.5)
+    inventory_base = 12 + (index * 3)
+    sku_prefix = "SP-DEMO-#{SecureRandom.hex(3).upcase}"
+    variant_labels = SIZE_LABELS.take(variant_count)
+
+    payload = {
+      title: "#{prefix} Product #{index + 1}",
+      body_html: "<p>Demo product generated for StorePilot AI testing.</p>",
+      vendor: "StorePilot AI",
+      product_type: PRODUCT_TYPES[index % PRODUCT_TYPES.length],
+      status: "active",
+      tags: "storepilot-demo,seeded",
+      options: [ { name: "Size" } ],
+      variants: variant_labels.each_with_index.map do |label, variant_index|
+        {
+          option1: label,
+          price: format("%.2f", price_base + (variant_index * 2.25)),
+          sku: "#{sku_prefix}-#{label.upcase}",
+          inventory_management: "shopify",
+          inventory_quantity: inventory_base - (variant_index * 2)
+        }
+      end
+    }
+
+    response = post_json(product_uri, { product: payload })
+    product = response.fetch("product")
+    variants = product.fetch("variants", [])
+
+    puts "Created product #{product.fetch('title')} with #{variants.size} variants (#{product.fetch('id')})"
+
+    {
+      id: product.fetch("id"),
+      title: product.fetch("title"),
+      variants: variants.map do |variant|
+        {
+          id: variant.fetch("id"),
+          title: variant.fetch("title"),
+          price: BigDecimal(variant.fetch("price").to_s)
+        }
+      end
+    }
+  rescue StandardError => error
+    warn "Failed to create product #{index + 1}: #{error.message}"
+    nil
+  end
+
+  def seed_collections(seeded_products)
+    return [] if seeded_products.empty?
+
+    Array.new(collection_count) do |index|
+      title = COLLECTION_NAMES[index] || "#{prefix} Collection #{index + 1}"
+
+      begin
+        response = post_json(custom_collection_uri, {
+          custom_collection: {
+            title:,
+            body_html: "<p>Demo collection generated for StorePilot AI testing.</p>",
+            published: true
+          }
+        })
+
+        collection = response.fetch("custom_collection")
+        product_ids = seeded_products.each_index.select { |product_index| product_index % collection_count == index }.map { |product_index| seeded_products[product_index].fetch(:id) }
+
+        product_ids.each do |product_id|
+          post_json(collect_uri, {
+            collect: {
+              product_id:,
+              collection_id: collection.fetch("id")
+            }
+          })
+        end
+
+        puts "Created collection #{collection.fetch('title')} and attached #{product_ids.size} products (#{collection.fetch('id')})"
+
+        {
+          id: collection.fetch("id"),
+          title: collection.fetch("title"),
+          product_ids:
+        }
+      rescue StandardError => error
+        warn "Failed to create collection #{index + 1}: #{error.message}"
+        nil
+      end
+    end.compact
+  end
+
+  def seed_orders(seeded_products)
+    variant_pool = seeded_products.flat_map { |product| product.fetch(:variants) }
+    return if variant_pool.empty?
+
+    order_count.times do |index|
+      begin
+        line_item_count = [ 1 + (index % 3), variant_pool.size ].min
+        chosen_variants = variant_pool.sample(line_item_count)
+
+        line_items = chosen_variants.map.with_index do |variant, item_index|
+          quantity = 1 + ((index + item_index) % 2)
+          {
+            variant_id: variant.fetch(:id),
+            quantity:
+          }
+        end
+
+        order_total = chosen_variants.each_with_index.sum do |variant, item_index|
+          quantity = line_items.fetch(item_index).fetch(:quantity)
+          variant.fetch(:price) * quantity
+        end
+
+        payload = {
+          email: "demo-customer-#{index + 1}@example.com",
+          financial_status: "paid",
+          line_items: line_items,
+          note: "StorePilot demo order ##{index + 1}",
+          tags: "storepilot-demo,seeded",
+          test: true
+        }
+
+        response = post_json(order_uri, { order: payload })
+        order = response.fetch("order")
+        puts "Created order #{order.fetch('name')} for #{line_items.size} items (#{order.fetch('id')}) total=#{format_money(order_total)}"
+      rescue StandardError => error
+        warn "Failed to create order #{index + 1}: #{error.message}"
+      end
+    end
+  end
+
+  def format_money(amount)
+    "#{store.currency.presence || 'USD'} #{format('%.2f', amount)}"
+  end
+
+  def post_json(uri, payload)
+    request = Net::HTTP::Post.new(uri)
+    request["Content-Type"] = "application/json"
+    request["X-Shopify-Access-Token"] = store.access_token
+    request.body = JSON.generate(payload)
+
+    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+      http.request(request)
+    end
+
+    parse_response!(response)
+  end
+
+  def parse_response!(response)
+    raise "Shopify request failed: HTTP #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+    JSON.parse(response.body)
+  rescue JSON::ParserError
+    raise "Shopify response was not valid JSON"
+  end
+
+  def product_uri
+    @product_uri ||= URI::HTTPS.build(host: store.shopify_domain, path: "/admin/api/#{api_version}/products.json")
+  end
+
+  def custom_collection_uri
+    @custom_collection_uri ||= URI::HTTPS.build(host: store.shopify_domain, path: "/admin/api/#{api_version}/custom_collections.json")
+  end
+
+  def collect_uri
+    @collect_uri ||= URI::HTTPS.build(host: store.shopify_domain, path: "/admin/api/#{api_version}/collects.json")
+  end
+
+  def order_uri
+    @order_uri ||= URI::HTTPS.build(host: store.shopify_domain, path: "/admin/api/#{api_version}/orders.json")
+  end
+end
+
+ShopifySeeder.new(
+  store:,
+  api_version:,
+  prefix:,
+  count:,
+  variant_count:,
+  collection_count:,
+  order_count:
+).call
