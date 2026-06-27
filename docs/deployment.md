@@ -1,46 +1,51 @@
-# StorePilot AI Deployment
+# StorePilot AI Deployment Notes
 
-## Kamal workflow
+## Staging environment
 
-StorePilot AI is configured for container-based deployment with Kamal.
+StorePilot AI uses a separate staging environment for Shopify OAuth, webhook
+testing, sync jobs, and audit verification.
 
-The main commands are:
+The staging app host is configured with `APP_HOST`. Set it to the real staging
+domain you control, for example `staging.storepilot.example`.
+
+Staging uses its own:
+
+- Rails environment: `staging`
+- PostgreSQL database
+- Redis instance
+- Solid Queue database
+- Solid Cable database
+- Shopify app credentials and callback URLs
+
+### Staging env values
+
+Minimum values to set on the staging server:
 
 ```bash
-bin/kamal setup
-bin/kamal deploy
-bin/kamal app exec --interactive --reuse "bin/rails console"
-bin/kamal logs -f
+RAILS_ENV=staging
+APP_HOST=staging.storepilot.example
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+SHOPIFY_APP_URL=https://staging.storepilot.example
+SHOPIFY_REDIRECT_URI=https://staging.storepilot.example/auth/shopify/callback
+SHOPIFY_API_KEY=...
+SHOPIFY_API_SECRET=...
+RAILS_MASTER_KEY=...
+SENTRY_DSN=...
+RESEND_API_KEY=...
 ```
 
-## Required setup
+## Why staging is separate
 
-Before the first deploy, provide:
+Staging keeps merchant testing isolated from production and lets us verify:
 
-- `KAMAL_REGISTRY_PASSWORD`
-- `RAILS_MASTER_KEY`
-- Shopify app credentials
-- `DATABASE_URL`
-- `REDIS_URL`
-- `SENTRY_DSN`
-- `RESEND_API_KEY`
+- Shopify OAuth
+- webhook delivery
+- background jobs
+- product and order syncs
+- audit runs
 
-Keep staging and production values separate.
+## Logging
 
-## Configured defaults
-
-The committed Kamal config uses:
-
-- `service: store_pilot_ai`
-- image registry at `ghcr.io/ruby-pl/store_pilot_ai`
-- HTTPS proxy host `staging.storepilot.ai` by default
-- a separate web host override through `KAMAL_WEB_HOST`
-
-For production, override the environment variables to point at the production host and production secrets.
-
-## Runtime notes
-
-- The app image is built from the committed `Dockerfile`.
-- Static assets are served from the container image.
-- Storage is persisted via the mounted `/rails/storage` volume.
-- `SOLID_QUEUE_IN_PUMA` is disabled in the Kamal default config so the app can later run Sidekiq as a separate process.
+The staging environment tags logs with `staging` so deployment and runtime
+output can be distinguished from production.
