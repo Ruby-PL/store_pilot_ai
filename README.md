@@ -91,6 +91,8 @@ password. Never commit `.env`, Rails master keys, or credential keys.
 Shopify Partner app setup and required scopes are documented in
 [docs/shopify_partner_app.md](docs/shopify_partner_app.md).
 
+Deployment setup and Kamal commands are documented in
+[docs/deployment.md](docs/deployment.md).
 Deployment architecture, environment split, and service choices are documented
 in [docs/deployment.md](docs/deployment.md).
 
