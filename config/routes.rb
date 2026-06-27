@@ -4,7 +4,8 @@ Rails.application.routes.draw do
   get "auth/shopify", to: "shopify/oauth#install", as: :shopify_install
   get "auth/shopify/callback", to: "shopify/oauth#callback", as: :shopify_oauth_callback
   post "webhooks/shopify/app_uninstalled", to: "shopify/webhooks#app_uninstalled", as: :shopify_app_uninstalled_webhook
-  get "dashboard", to: "shopify/dashboard#show", as: :dashboard
+  get "dashboard", to: "dashboard#show", as: :dashboard
+  post "dashboard/sync", to: "dashboard#sync", as: :dashboard_sync
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
