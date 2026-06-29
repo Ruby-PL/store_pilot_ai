@@ -41,7 +41,7 @@
       </div>
       <div class="top-actions">
         <span class="status-pill <%= connected ? "connected" : "disconnected" %>"><%= connected ? "Connected" : "Not connected" %></span>
-        <%= form_with url: dashboard_sync_path(shop: @store&.shopify_domain), method: :post, class: "sync-form", local: true do %>
+        <%= form_with url: dashboard_sync_path, method: :post, class: "sync-form", local: true do %>
           <%= button_tag type: "submit", class: "primary-button sync-button", disabled: !connected do %>
             <span aria-hidden="true">↻</span>Run sync
           <% end %>
