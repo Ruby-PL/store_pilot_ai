@@ -1,38 +1,38 @@
-# StorePilot AI Deployment Notes
+# StorePilot AI Deployment
 
-## Staging environment
+StorePilot AI is deployed with Kamal. The default deployment config targets
+staging, and `config/deploy.production.yml` overrides the host settings for
+production.
 
-StorePilot AI uses a separate staging environment for Shopify OAuth, webhook
-testing, sync jobs, and audit verification.
+## Kamal workflow
 
-The staging app host is configured with `APP_HOST`. Set it to the real staging
-domain you control, for example `staging.storepilot.example`.
+Staging:
 
-Staging uses its own:
-
-- Rails environment: `staging`
-- PostgreSQL database
-- Redis instance
-- Solid Queue database
-- Solid Cable database
-- Shopify app credentials and callback URLs
 ```bash
 bin/kamal setup
 bin/kamal deploy
-bin/kamal setup -d production
-bin/kamal deploy -d production
 bin/kamal app exec --interactive --reuse "bin/rails console"
 bin/kamal logs -f
 ```
 
-## Required setup
+Production:
 
-Before the first production deploy, provide these values from the shell or a
-password manager. Do not commit raw values to git.
+```bash
+bin/kamal setup -d production
+bin/kamal deploy -d production
+bin/kamal app exec -d production --interactive --reuse "bin/rails console"
+bin/kamal logs -d production -f
+```
 
-### Staging env values
+## Staging environment
 
-Minimum values to set on the staging server:
+Staging is used for Shopify OAuth, webhook testing, sync jobs, and audit
+verification without touching production merchant data.
+
+The staging Rails environment uses `APP_HOST` for generated URLs. Set it to the
+real staging domain you control, for example `staging.storepilot.example`.
+
+Minimum staging values:
 
 ```bash
 RAILS_ENV=staging
@@ -47,27 +47,17 @@ RAILS_MASTER_KEY=...
 SENTRY_DSN=...
 RESEND_API_KEY=...
 ```
-Optional separate database URLs are supported for Solid Cache, Solid Queue, and
-Solid Cable:
 
-- `CACHE_DATABASE_URL`
-- `QUEUE_DATABASE_URL`
-- `CABLE_DATABASE_URL`
+Staging uses its own:
 
-When those values are omitted, the app uses `DATABASE_URL` for all PostgreSQL
-backed production stores.
+- PostgreSQL database
+- Redis instance
+- Solid Queue database
+- Solid Cable database
+- Shopify app credentials and callback URLs
 
-## Configured defaults
+## Production environment
 
-## Why staging is separate
-
-Staging keeps merchant testing isolated from production and lets us verify:
-
-- Shopify OAuth
-- webhook delivery
-- background jobs
-- product and order syncs
-- audit runs
 The production destination config in `config/deploy.production.yml` uses:
 
 - production URL `https://app.storepilot.ai`
@@ -78,33 +68,56 @@ The production destination config in `config/deploy.production.yml` uses:
 Override `APPLICATION_HOST`, `KAMAL_APP_HOST`, and `KAMAL_WEB_HOST` if the final
 production DNS name changes.
 
+Before the first production deploy, provide these values from the shell or a
+password manager. Do not commit raw values to git.
+
+- `KAMAL_REGISTRY_PASSWORD`
+- `RAILS_MASTER_KEY`
+- `SHOPIFY_API_KEY`
+- `SHOPIFY_API_SECRET`
+- `SHOPIFY_APP_URL`
+- `SHOPIFY_REDIRECT_URI`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `SENTRY_DSN`
+- `RESEND_API_KEY`
+
 ## Production services
 
 PostgreSQL is configured through `DATABASE_URL`. The URL must point at the
-managed production database. If cache, queue, or cable data should be isolated,
-set the optional `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and
-`CABLE_DATABASE_URL` values.
+managed production database.
+
+Optional separate database URLs are supported for Solid Cache, Solid Queue, and
+Solid Cable:
+
+- `CACHE_DATABASE_URL`
+- `QUEUE_DATABASE_URL`
+- `CABLE_DATABASE_URL`
+
+When those values are omitted, the app uses `DATABASE_URL` for all PostgreSQL
+backed production stores.
 
 Redis is configured through `REDIS_URL`. Use a TLS URL (`rediss://...`) when the
 provider supports it. The current Rails cache, job, and cable adapters are
 Solid-backed PostgreSQL adapters; Redis is still required as a provisioned
 production service for app features that depend on it.
 
-## Logging
+## Runtime notes
 
-The staging environment tags logs with `staging` so deployment and runtime
-output can be distinguished from production.
 - The app image is built from the committed `Dockerfile`.
+- The image registry is `ghcr.io/ruby-pl/store_pilot_ai`.
 - Static assets are served from the container image.
 - Storage is persisted via the mounted `/rails/storage` volume.
-- `SOLID_QUEUE_IN_PUMA` is disabled in the Kamal default config so the app can later run Sidekiq as a separate process.
+- `SOLID_QUEUE_IN_PUMA` is disabled in Kamal config so workers can run as a separate process.
+- Staging logs include the Rails environment tag so staging output can be distinguished from production.
 
 ## Production deployment checklist
 
 - DNS for `app.storepilot.ai` points to the production server.
 - Registry credentials can pull `ghcr.io/ruby-pl/store_pilot_ai`.
 - Production `RAILS_MASTER_KEY` is present only in the deployment secret source.
-- Shopify production app uses `https://app.storepilot.ai` and callback `https://app.storepilot.ai/auth/shopify/callback`.
+- Shopify production app uses `https://app.storepilot.ai`.
+- Shopify production callback is `https://app.storepilot.ai/auth/shopify/callback`.
 - `DATABASE_URL` points at the production PostgreSQL database.
 - Optional `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and `CABLE_DATABASE_URL` are set when using separate databases.
 - `REDIS_URL` points at the production Redis instance and uses TLS where available.
