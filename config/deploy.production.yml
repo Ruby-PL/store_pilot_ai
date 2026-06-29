@@ -1,0 +1,18 @@
+servers:
+  web:
+    - <%= ENV.fetch("KAMAL_WEB_HOST", "app.storepilot.ai") %>
+  # job:
+  #   hosts:
+  #     - <%= ENV.fetch("KAMAL_JOB_HOST", "app.storepilot.ai") %>
+  #   cmd: bin/jobs
+
+proxy:
+  ssl: true
+  host: <%= ENV.fetch("KAMAL_APP_HOST", "app.storepilot.ai") %>
+
+env:
+  clear:
+    APPLICATION_HOST: <%= ENV.fetch("APPLICATION_HOST", ENV.fetch("KAMAL_APP_HOST", "app.storepilot.ai")) %>
+    RAILS_LOG_LEVEL: info
+    RAILS_SERVE_STATIC_FILES: true
+    SOLID_QUEUE_IN_PUMA: false
