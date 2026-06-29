@@ -1,11 +1,21 @@
-# StorePilot AI Deployment
+# StorePilot AI Deployment Notes
 
-## Kamal workflow
+## Staging environment
 
-StorePilot AI is configured for container-based deployment with Kamal.
+StorePilot AI uses a separate staging environment for Shopify OAuth, webhook
+testing, sync jobs, and audit verification.
 
-The main commands are:
+The staging app host is configured with `APP_HOST`. Set it to the real staging
+domain you control, for example `staging.storepilot.example`.
 
+Staging uses its own:
+
+- Rails environment: `staging`
+- PostgreSQL database
+- Redis instance
+- Solid Queue database
+- Solid Cable database
+- Shopify app credentials and callback URLs
 ```bash
 bin/kamal setup
 bin/kamal deploy
@@ -20,16 +30,23 @@ bin/kamal logs -f
 Before the first production deploy, provide these values from the shell or a
 password manager. Do not commit raw values to git.
 
-- `KAMAL_REGISTRY_PASSWORD`
-- `RAILS_MASTER_KEY`
-- Shopify app credentials
-- `DATABASE_URL`
-- `REDIS_URL`
-- `SENTRY_DSN`
-- `RESEND_API_KEY`
+### Staging env values
 
-Keep staging and production values separate.
+Minimum values to set on the staging server:
 
+```bash
+RAILS_ENV=staging
+APP_HOST=staging.storepilot.example
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+SHOPIFY_APP_URL=https://staging.storepilot.example
+SHOPIFY_REDIRECT_URI=https://staging.storepilot.example/auth/shopify/callback
+SHOPIFY_API_KEY=...
+SHOPIFY_API_SECRET=...
+RAILS_MASTER_KEY=...
+SENTRY_DSN=...
+RESEND_API_KEY=...
+```
 Optional separate database URLs are supported for Solid Cache, Solid Queue, and
 Solid Cable:
 
@@ -42,13 +59,15 @@ backed production stores.
 
 ## Configured defaults
 
-The committed Kamal config uses:
+## Why staging is separate
 
-- `service: store_pilot_ai`
-- image registry at `ghcr.io/ruby-pl/store_pilot_ai`
-- HTTPS proxy host `staging.storepilot.ai` by default
-- a separate web host override through `KAMAL_WEB_HOST`
+Staging keeps merchant testing isolated from production and lets us verify:
 
+- Shopify OAuth
+- webhook delivery
+- background jobs
+- product and order syncs
+- audit runs
 The production destination config in `config/deploy.production.yml` uses:
 
 - production URL `https://app.storepilot.ai`
@@ -71,8 +90,10 @@ provider supports it. The current Rails cache, job, and cable adapters are
 Solid-backed PostgreSQL adapters; Redis is still required as a provisioned
 production service for app features that depend on it.
 
-## Runtime notes
+## Logging
 
+The staging environment tags logs with `staging` so deployment and runtime
+output can be distinguished from production.
 - The app image is built from the committed `Dockerfile`.
 - Static assets are served from the container image.
 - Storage is persisted via the mounted `/rails/storage` volume.

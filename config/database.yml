@@ -58,6 +58,23 @@ test:
   <<: *default
   database: store_pilot_ai_test
 
+staging:
+  primary: &primary_staging
+    <<: *default
+    database: store_pilot_ai_staging
+  cache:
+    <<: *primary_staging
+    database: store_pilot_ai_staging_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_staging
+    database: store_pilot_ai_staging_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_staging
+    database: store_pilot_ai_staging_cable
+    migrations_paths: db/cable_migrate
+
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
 # ever seen by anyone, they now have access to your database.
