@@ -28,10 +28,14 @@ env:
     - SHOPIFY_APP_URL
     - SHOPIFY_REDIRECT_URI
     - DATABASE_URL
+    - CACHE_DATABASE_URL
+    - QUEUE_DATABASE_URL
+    - CABLE_DATABASE_URL
     - REDIS_URL
     - SENTRY_DSN
     - RESEND_API_KEY
   clear:
+    APPLICATION_HOST: <%= ENV.fetch("APPLICATION_HOST", ENV.fetch("KAMAL_APP_HOST", "staging.storepilot.ai")) %>
     RAILS_LOG_LEVEL: info
     RAILS_SERVE_STATIC_FILES: true
     SOLID_QUEUE_IN_PUMA: false
