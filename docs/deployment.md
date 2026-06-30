@@ -4,6 +4,8 @@ StorePilot AI is deployed with Kamal. The default deployment config targets
 staging, and `config/deploy.production.yml` overrides the host settings for
 production.
 
+DNS and HTTPS setup is documented in [dns_ssl.md](dns_ssl.md).
+
 ## Kamal workflow
 
 Staging:
