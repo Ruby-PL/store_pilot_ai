@@ -110,6 +110,7 @@ production service for app features that depend on it.
 - Storage is persisted via the mounted `/rails/storage` volume.
 - `SOLID_QUEUE_IN_PUMA` is disabled in Kamal config so workers can run as a separate process.
 - Staging logs include the Rails environment tag so staging output can be distinguished from production.
+- Release deployment, rollback, log, restart, and migration steps are documented in [deployment_runbook.md](deployment_runbook.md).
 
 ## Production deployment checklist
 
