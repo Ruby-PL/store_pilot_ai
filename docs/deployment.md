@@ -24,6 +24,16 @@ bin/kamal app exec -d production --interactive --reuse "bin/rails console"
 bin/kamal logs -d production -f
 ```
 
+## Health checks
+
+StorePilot exposes two health endpoints:
+
+- `/up` checks that the Rails app boots and is suitable for basic load balancer checks.
+- `/health` checks the Rails app and database connection and is suitable for deployment verification.
+
+The `/health` response only reports service status and does not expose database
+connection details or secrets.
+
 ## Staging environment
 
 Staging is used for Shopify OAuth, webhook testing, sync jobs, and audit
@@ -126,3 +136,4 @@ production service for app features that depend on it.
 - `bin/kamal app exec -d production --interactive --reuse "bin/rails db:migrate"` completes successfully.
 - `bin/kamal deploy -d production` completes successfully.
 - `https://app.storepilot.ai/up` returns healthy.
+- `https://app.storepilot.ai/health` returns healthy after migrations.
