@@ -45,6 +45,7 @@ SHOPIFY_API_KEY=...
 SHOPIFY_API_SECRET=...
 RAILS_MASTER_KEY=...
 SENTRY_DSN=...
+SENTRY_ENVIRONMENT=staging
 RESEND_API_KEY=...
 ```
 
@@ -80,6 +81,7 @@ password manager. Do not commit raw values to git.
 - `DATABASE_URL`
 - `REDIS_URL`
 - `SENTRY_DSN`
+- `SENTRY_ENVIRONMENT`
 - `RESEND_API_KEY`
 
 ## Production services
@@ -111,6 +113,26 @@ production service for app features that depend on it.
 - `SOLID_QUEUE_IN_PUMA` is disabled in Kamal config so workers can run as a separate process.
 - Staging logs include the Rails environment tag so staging output can be distinguished from production.
 
+## Sentry verification
+
+After setting the environment-specific `SENTRY_DSN`, verify error monitoring
+from each deployed environment.
+
+Staging:
+
+```bash
+bin/kamal app exec --interactive --reuse "bin/rails runner 'ErrorMonitoring.capture_exception(StandardError.new(\"Sentry staging smoke test\"), context: { source: \"deployment_check\" })'"
+```
+
+Production:
+
+```bash
+bin/kamal app exec -d production --interactive --reuse "bin/rails runner 'ErrorMonitoring.capture_exception(StandardError.new(\"Sentry production smoke test\"), context: { source: \"deployment_check\" })'"
+```
+
+Confirm the event appears in the matching Sentry project with environment
+`staging` or `production`.
+
 ## Production deployment checklist
 
 - DNS for `app.storepilot.ai` points to the production server.
@@ -121,7 +143,7 @@ production service for app features that depend on it.
 - `DATABASE_URL` points at the production PostgreSQL database.
 - Optional `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and `CABLE_DATABASE_URL` are set when using separate databases.
 - `REDIS_URL` points at the production Redis instance and uses TLS where available.
-- `SENTRY_DSN` and `RESEND_API_KEY` point at production projects/accounts.
+- `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, and `RESEND_API_KEY` point at production projects/accounts.
 - `bin/kamal setup -d production` completes successfully.
 - `bin/kamal app exec -d production --interactive --reuse "bin/rails db:migrate"` completes successfully.
 - `bin/kamal deploy -d production` completes successfully.

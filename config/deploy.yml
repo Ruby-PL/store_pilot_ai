@@ -38,6 +38,7 @@ env:
     APPLICATION_HOST: <%= ENV.fetch("APPLICATION_HOST", ENV.fetch("KAMAL_APP_HOST", "staging.storepilot.ai")) %>
     RAILS_LOG_LEVEL: info
     RAILS_SERVE_STATIC_FILES: true
+    SENTRY_ENVIRONMENT: staging
     SOLID_QUEUE_IN_PUMA: false
 
 aliases:
