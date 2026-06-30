@@ -102,6 +102,12 @@ provider supports it. The current Rails cache, job, and cable adapters are
 Solid-backed PostgreSQL adapters; Redis is still required as a provisioned
 production service for app features that depend on it.
 
+## Shopify production app
+
+Production Shopify settings are documented in `docs/shopify_partner_app.md`.
+Use a separate production Shopify app, client ID, and client secret. Do not reuse
+staging Shopify credentials in production.
+
 ## Runtime notes
 
 - The app image is built from the committed `Dockerfile`.
@@ -118,6 +124,8 @@ production service for app features that depend on it.
 - Production `RAILS_MASTER_KEY` is present only in the deployment secret source.
 - Shopify production app uses `https://app.storepilot.ai`.
 - Shopify production callback is `https://app.storepilot.ai/auth/shopify/callback`.
+- Shopify production app uninstall webhook is `https://app.storepilot.ai/webhooks/shopify/app_uninstalled`.
+- Shopify production credentials are separate from staging credentials.
 - `DATABASE_URL` points at the production PostgreSQL database.
 - Optional `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and `CABLE_DATABASE_URL` are set when using separate databases.
 - `REDIS_URL` points at the production Redis instance and uses TLS where available.
