@@ -102,13 +102,49 @@ provider supports it. The current Rails cache, job, and cable adapters are
 Solid-backed PostgreSQL adapters; Redis is still required as a provisioned
 production service for app features that depend on it.
 
+## Background jobs
+
+StorePilot uses Rails Solid Queue for background jobs. The sprint tickets may
+refer to Sidekiq, but the deployed job process is `bin/jobs` and runs as the
+Kamal `job` role in both staging and production.
+
+Set `KAMAL_JOB_HOST` when the worker should run on a different host than the web
+process. Set `JOB_CONCURRENCY` to control Solid Queue worker processes per
+container; it defaults to `1`.
+
+Staging worker commands:
+
+```bash
+bin/kamal app exec --role job --reuse "bin/jobs --help"
+bin/kamal app logs --roles job -f
+bin/kamal app exec --interactive --reuse "bin/rails runner 'puts SolidQueue::FailedExecution.count'"
+```
+
+Production worker commands:
+
+```bash
+bin/kamal app exec -d production --role job --reuse "bin/jobs --help"
+bin/kamal app logs -d production --roles job -f
+bin/kamal app exec -d production --interactive --reuse "bin/rails runner 'puts SolidQueue::FailedExecution.count'"
+```
+
+Run product or order sync jobs remotely from a Rails runner or console once the
+target job class and shop are known. For example:
+
+```bash
+bin/kamal app exec --interactive --reuse "bin/rails console"
+```
+
+Failed jobs are visible through Solid Queue records in the Rails console. Do not
+expose a public job dashboard without authentication.
+
 ## Runtime notes
 
 - The app image is built from the committed `Dockerfile`.
 - The image registry is `ghcr.io/ruby-pl/store_pilot_ai`.
 - Static assets are served from the container image.
 - Storage is persisted via the mounted `/rails/storage` volume.
-- `SOLID_QUEUE_IN_PUMA` is disabled in Kamal config so workers can run as a separate process.
+- `SOLID_QUEUE_IN_PUMA` is disabled in Kamal config so workers run through the separate `job` role.
 - Staging logs include the Rails environment tag so staging output can be distinguished from production.
 
 ## Production deployment checklist
@@ -125,4 +161,5 @@ production service for app features that depend on it.
 - `bin/kamal setup -d production` completes successfully.
 - `bin/kamal app exec -d production --interactive --reuse "bin/rails db:migrate"` completes successfully.
 - `bin/kamal deploy -d production` completes successfully.
+- `bin/kamal app logs -d production --roles job -f` shows the job process running.
 - `https://app.storepilot.ai/up` returns healthy.

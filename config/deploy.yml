@@ -5,10 +5,10 @@ image: ghcr.io/ruby-pl/store_pilot_ai
 servers:
   web:
     - <%= ENV.fetch("KAMAL_WEB_HOST", "staging.storepilot.ai") %>
-  # job:
-  #   hosts:
-  #     - <%= ENV.fetch("KAMAL_JOB_HOST", "staging.storepilot.ai") %>
-  #   cmd: bin/jobs
+  job:
+    hosts:
+      - <%= ENV.fetch("KAMAL_JOB_HOST", "staging.storepilot.ai") %>
+    cmd: bin/jobs
 
 proxy:
   ssl: true
@@ -38,6 +38,7 @@ env:
     APPLICATION_HOST: <%= ENV.fetch("APPLICATION_HOST", ENV.fetch("KAMAL_APP_HOST", "staging.storepilot.ai")) %>
     RAILS_LOG_LEVEL: info
     RAILS_SERVE_STATIC_FILES: true
+    JOB_CONCURRENCY: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
     SOLID_QUEUE_IN_PUMA: false
 
 aliases:
