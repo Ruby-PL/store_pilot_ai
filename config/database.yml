@@ -61,18 +61,18 @@ test:
 staging:
   primary: &primary_staging
     <<: *default
-    database: store_pilot_ai_staging
+    url: <%= ENV["DATABASE_URL"] %>
   cache:
     <<: *primary_staging
-    database: store_pilot_ai_staging_cache
+    url: <%= ENV["CACHE_DATABASE_URL"] || ENV["DATABASE_URL"] %>
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_staging
-    database: store_pilot_ai_staging_queue
+    url: <%= ENV["QUEUE_DATABASE_URL"] || ENV["DATABASE_URL"] %>
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_staging
-    database: store_pilot_ai_staging_cable
+    url: <%= ENV["CABLE_DATABASE_URL"] || ENV["DATABASE_URL"] %>
     migrations_paths: db/cable_migrate
 
 # As with config/credentials.yml, you never want to store sensitive information,
