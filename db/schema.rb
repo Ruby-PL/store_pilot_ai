@@ -10,9 +10,42 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_25_091000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_01_140100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "audit_results", force: :cascade do |t|
+    t.bigint "audit_run_id", null: false
+    t.string "category"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.jsonb "details", default: {}, null: false
+    t.text "error_message"
+    t.text "recommendation"
+    t.string "rule_key", null: false
+    t.string "severity"
+    t.string "status", default: "passed", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["audit_run_id", "rule_key"], name: "index_audit_results_on_audit_run_id_and_rule_key"
+    t.index ["audit_run_id"], name: "index_audit_results_on_audit_run_id"
+    t.index ["category"], name: "index_audit_results_on_category"
+    t.index ["status", "severity"], name: "index_audit_results_on_status_and_severity"
+  end
+
+  create_table "audit_runs", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.integer "failed_rule_count", default: 0, null: false
+    t.integer "rule_count", default: 0, null: false
+    t.datetime "started_at", null: false
+    t.string "status", default: "running", null: false
+    t.bigint "store_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_audit_runs_on_status"
+    t.index ["store_id", "created_at"], name: "index_audit_runs_on_store_id_and_created_at"
+    t.index ["store_id"], name: "index_audit_runs_on_store_id"
+  end
 
   create_table "order_snapshots", force: :cascade do |t|
     t.datetime "captured_at", null: false
@@ -70,6 +103,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_091000) do
     t.index "lower((email)::text)", name: "index_users_on_lower_email", unique: true
   end
 
+  add_foreign_key "audit_results", "audit_runs"
+  add_foreign_key "audit_runs", "stores"
   add_foreign_key "order_snapshots", "stores"
   add_foreign_key "product_snapshots", "stores"
   add_foreign_key "stores", "users"
