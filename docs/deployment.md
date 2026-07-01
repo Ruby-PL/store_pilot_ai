@@ -30,17 +30,20 @@ Staging is used for Shopify OAuth, webhook testing, sync jobs, and audit
 verification without touching production merchant data.
 
 The staging Rails environment uses `APP_HOST` for generated URLs. Set it to the
-real staging domain you control, for example `staging.storepilot.example`.
+real staging domain, `staging.storepilot.ai`.
 
 Minimum staging values:
 
 ```bash
 RAILS_ENV=staging
-APP_HOST=staging.storepilot.example
+APP_HOST=staging.storepilot.ai
 DATABASE_URL=postgresql://...
-REDIS_URL=redis://...
-SHOPIFY_APP_URL=https://staging.storepilot.example
-SHOPIFY_REDIRECT_URI=https://staging.storepilot.example/auth/shopify/callback
+CACHE_DATABASE_URL=postgresql://...
+QUEUE_DATABASE_URL=postgresql://...
+CABLE_DATABASE_URL=postgresql://...
+REDIS_URL=rediss://...
+SHOPIFY_APP_URL=https://staging.storepilot.ai
+SHOPIFY_REDIRECT_URI=https://staging.storepilot.ai/auth/shopify/callback
 SHOPIFY_API_KEY=...
 SHOPIFY_API_SECRET=...
 RAILS_MASTER_KEY=...
@@ -85,7 +88,7 @@ password manager. Do not commit raw values to git.
 ## Production services
 
 PostgreSQL is configured through `DATABASE_URL`. The URL must point at the
-managed production database.
+managed database for the active environment.
 
 Optional separate database URLs are supported for Solid Cache, Solid Queue, and
 Solid Cable:
@@ -95,12 +98,45 @@ Solid Cable:
 - `CABLE_DATABASE_URL`
 
 When those values are omitted, the app uses `DATABASE_URL` for all PostgreSQL
-backed production stores.
+backed stores in that environment.
 
 Redis is configured through `REDIS_URL`. Use a TLS URL (`rediss://...`) when the
 provider supports it. The current Rails cache, job, and cable adapters are
 Solid-backed PostgreSQL adapters; Redis is still required as a provisioned
 production service for app features that depend on it.
+
+## Data services
+
+Use separate managed PostgreSQL and Redis services for staging and production.
+Do not share databases, Redis instances, users, passwords, or backup buckets
+between environments.
+
+Required service variables:
+
+| Variable | Required in | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | staging, production | Primary Rails database connection |
+| `CACHE_DATABASE_URL` | optional | Solid Cache database; falls back to `DATABASE_URL` |
+| `QUEUE_DATABASE_URL` | optional | Solid Queue database; falls back to `DATABASE_URL` |
+| `CABLE_DATABASE_URL` | optional | Solid Cable database; falls back to `DATABASE_URL` |
+| `REDIS_URL` | staging, production | Redis connection for runtime features that need Redis |
+
+Connection requirements:
+
+- PostgreSQL should require SSL when the provider supports it.
+- Redis should use `rediss://` when TLS is available.
+- Credentials must be supplied through Kamal secrets or a password manager.
+- Staging and production credentials must be rotated independently.
+- Application logs must not print full connection URLs.
+
+Backup strategy:
+
+- Production PostgreSQL must have automated daily backups before launch.
+- Production backups should be retained for at least 14 days.
+- Staging PostgreSQL should have provider snapshots or daily backups when it contains useful test data.
+- Backup restore should be tested before launch by restoring to a non-production database.
+- Redis is treated as disposable cache/runtime state unless a future feature stores durable data there.
+- Document the final provider-specific backup policy in the deployment runbook.
 
 ## Runtime notes
 
@@ -121,6 +157,7 @@ production service for app features that depend on it.
 - `DATABASE_URL` points at the production PostgreSQL database.
 - Optional `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and `CABLE_DATABASE_URL` are set when using separate databases.
 - `REDIS_URL` points at the production Redis instance and uses TLS where available.
+- Automated PostgreSQL backups are enabled and restore has been tested outside production.
 - `SENTRY_DSN` and `RESEND_API_KEY` point at production projects/accounts.
 - `bin/kamal setup -d production` completes successfully.
 - `bin/kamal app exec -d production --interactive --reuse "bin/rails db:migrate"` completes successfully.
