@@ -73,6 +73,9 @@ Staging uses its own:
 - Solid Cable database
 - Shopify app credentials and callback URLs
 
+Staging Shopify Partner app settings and install validation are documented in
+[shopify_partner_app.md](shopify_partner_app.md).
+
 ## Production environment
 
 The production destination config in `config/deploy.production.yml` uses:
