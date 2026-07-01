@@ -76,8 +76,11 @@ present in the shell take precedence.
 | `SHOPIFY_API_VERSION` | `2026-04` | Shopify Admin API version |
 | `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
 | `SENTRY_DSN` | Blank | Sentry project DSN for production error monitoring |
+| `SENTRY_ENVIRONMENT` | Rails environment | Environment name sent to Sentry |
 | `SENTRY_RELEASE` | Blank | Optional release identifier attached to Sentry events |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | Optional Sentry performance tracing sample rate |
+| `RESEND_API_KEY` | Blank | Resend API key used as the SMTP password in deployed environments |
+| `MAILER_FROM` | `StorePilot <noreply@storepilot.ai>` | Default sender address for transactional emails |
 
 For example, when port 5432 is already in use:
 
@@ -109,16 +112,31 @@ Use `COUNT=12` or `PREFIX="Demo"` to customize the generated products.
 
 ## Error monitoring
 
-Production exception monitoring uses Sentry when `SENTRY_DSN` is present.
-Without a DSN, Sentry is not initialized and local development stays quiet.
+Staging and production exception monitoring use Sentry when `SENTRY_DSN` is
+present. Use separate Sentry projects or DSNs per environment and set
+`SENTRY_ENVIRONMENT` to `staging` or `production`. Without a DSN, Sentry is not
+initialized and local development stays quiet.
 
-To verify a production Sentry project after setting `SENTRY_DSN`, run:
+To verify a Sentry project after setting `SENTRY_DSN`, run:
 
 ```bash
 bin/rails runner 'ErrorMonitoring.capture_exception(StandardError.new("Sentry smoke test"), context: { source: "manual" })'
 ```
 
 The exception should appear in the configured Sentry project.
+
+## Transactional email
+
+Staging and production send transactional email through Resend SMTP when
+`RESEND_API_KEY` is present. Use a verified Resend sending domain and set
+`MAILER_FROM` to an address on that domain, for example
+`StorePilot <noreply@storepilot.ai>`.
+
+To send a smoke-test email after configuring Resend:
+
+```bash
+bin/rails runner 'ActionMailer::Base.mail(to: "you@example.com", subject: "StorePilot email smoke test", body: "Resend is configured.").deliver_now'
+```
 
 ## Useful commands
 

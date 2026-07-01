@@ -17,8 +17,20 @@ Rails.application.configure do
   config.cache_store = :solid_cache_store
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
+  config.action_mailer.perform_deliveries = true
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "staging.storepilot.example") }
+  if ENV["RESEND_API_KEY"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: ENV.fetch("RESEND_SMTP_ADDRESS", "smtp.resend.com"),
+      port: ENV.fetch("RESEND_SMTP_PORT", 587).to_i,
+      user_name: ENV.fetch("RESEND_SMTP_USERNAME", "resend"),
+      password: ENV["RESEND_API_KEY"],
+      authentication: :plain,
+      enable_starttls_auto: true
+    }
+  end
   config.i18n.fallbacks = true
   config.active_record.dump_schema_after_migration = false
   config.active_record.attributes_for_inspect = [ :id ]
