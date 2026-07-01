@@ -11,8 +11,14 @@ module Shopify
           nodes {
             id
             title
+            description
             status
             totalInventory
+            images(first: 1) {
+              nodes {
+                id
+              }
+            }
             variants(first: 1) {
               nodes {
                 price
@@ -80,7 +86,9 @@ module Shopify
     def create_snapshot(product, captured_at:)
       store.product_snapshots.create!(
         shopify_product_id: product.fetch("id"),
-        title: product["title"],
+        title: product["title"].to_s,
+        description: product["description"],
+        image_count: product_image_count(product),
         price: product_price(product),
         inventory_quantity: product["totalInventory"].to_i,
         status: product["status"],
@@ -101,6 +109,10 @@ module Shopify
       BigDecimal(price.to_s)
     rescue ArgumentError, KeyError
       BigDecimal("0")
+    end
+
+    def product_image_count(product)
+      product.dig("images", "nodes").to_a.size
     end
 
     def graphql_client

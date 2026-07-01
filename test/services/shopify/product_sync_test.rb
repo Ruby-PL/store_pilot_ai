@@ -30,8 +30,10 @@ module Shopify
           {
             "id" => "gid://shopify/Product/123",
             "title" => "Everyday Tote",
+            "description" => "A practical canvas tote for daily errands.",
             "status" => "ACTIVE",
             "totalInventory" => 8,
+            "images" => { "nodes" => [ { "id" => "gid://shopify/MediaImage/1" } ] },
             "variants" => { "nodes" => [ { "price" => "24.50" } ] }
           }
         ])
@@ -43,6 +45,8 @@ module Shopify
 
       assert_equal "gid://shopify/Product/123", snapshot.shopify_product_id
       assert_equal "Everyday Tote", snapshot.title
+      assert_equal "A practical canvas tote for daily errands.", snapshot.description
+      assert_equal 1, snapshot.image_count
       assert_equal BigDecimal("24.50"), snapshot.price
       assert_equal 8, snapshot.inventory_quantity
       assert_equal "ACTIVE", snapshot.status
@@ -66,7 +70,7 @@ module Shopify
         with_graphql_responses(
           product_page([
             { "id" => "gid://shopify/Product/valid", "title" => "Everyday Tote" },
-            { "id" => "gid://shopify/Product/invalid", "title" => "" }
+            { "title" => "Missing ID" }
           ])
         ) do
           result = Shopify::ProductSync.call(@store)
@@ -126,8 +130,10 @@ module Shopify
             {
               "id" => "gid://shopify/Product/#{index}",
               "title" => "Product #{index}",
+              "description" => "Useful product #{index} description with enough detail for shoppers.",
               "status" => "ACTIVE",
               "totalInventory" => index,
+              "images" => { "nodes" => [ { "id" => "gid://shopify/MediaImage/#{index}" } ] },
               "variants" => { "nodes" => [ { "price" => (index + 1).to_s } ] }
             }
           end
