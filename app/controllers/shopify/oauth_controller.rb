@@ -34,6 +34,7 @@ module Shopify
 
       Rails.cache.delete(oauth_state_cache_key(state))
       cookies.delete(:shopify_oauth_state)
+      sign_in_store(installation.store)
 
       redirect_to dashboard_redirect_url(installation.store)
     end
@@ -45,7 +46,7 @@ module Shopify
     end
 
     def dashboard_redirect_url(store)
-      dashboard_path(shop: store.shopify_domain)
+      dashboard_path
     end
 
     def reject_oauth_request
