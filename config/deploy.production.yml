@@ -1,10 +1,10 @@
 servers:
   web:
     - <%= ENV.fetch("KAMAL_WEB_HOST", "app.storepilot.ai") %>
-  # job:
-  #   hosts:
-  #     - <%= ENV.fetch("KAMAL_JOB_HOST", "app.storepilot.ai") %>
-  #   cmd: bin/jobs
+  job:
+    hosts:
+      - <%= ENV.fetch("KAMAL_JOB_HOST", "app.storepilot.ai") %>
+    cmd: bin/jobs
 
 proxy:
   ssl: true
@@ -16,5 +16,6 @@ env:
     MAILER_FROM: <%= ENV.fetch("MAILER_FROM", "StorePilot <noreply@storepilot.ai>") %>
     RAILS_LOG_LEVEL: info
     RAILS_SERVE_STATIC_FILES: true
+    JOB_CONCURRENCY: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
     SENTRY_ENVIRONMENT: production
     SOLID_QUEUE_IN_PUMA: false

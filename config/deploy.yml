@@ -5,10 +5,10 @@ image: ghcr.io/ruby-pl/store_pilot_ai
 servers:
   web:
     - <%= ENV.fetch("KAMAL_WEB_HOST", "staging.storepilot.ai") %>
-  # job:
-  #   hosts:
-  #     - <%= ENV.fetch("KAMAL_JOB_HOST", "staging.storepilot.ai") %>
-  #   cmd: bin/jobs
+  job:
+    hosts:
+      - <%= ENV.fetch("KAMAL_JOB_HOST", "staging.storepilot.ai") %>
+    cmd: bin/jobs
 
 proxy:
   ssl: true
@@ -39,6 +39,7 @@ env:
     MAILER_FROM: <%= ENV.fetch("MAILER_FROM", "StorePilot <noreply@storepilot.ai>") %>
     RAILS_LOG_LEVEL: info
     RAILS_SERVE_STATIC_FILES: true
+    JOB_CONCURRENCY: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
     SENTRY_ENVIRONMENT: staging
     SOLID_QUEUE_IN_PUMA: false
 
