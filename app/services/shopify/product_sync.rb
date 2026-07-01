@@ -14,9 +14,14 @@ module Shopify
             description
             status
             totalInventory
-            images(first: 1) {
+            seo {
+              title
+              description
+            }
+            images(first: 10) {
               nodes {
                 id
+                altText
               }
             }
             variants(first: 1) {
@@ -89,6 +94,9 @@ module Shopify
         title: product["title"].to_s,
         description: product["description"],
         image_count: product_image_count(product),
+        seo_title: product.dig("seo", "title"),
+        seo_description: product.dig("seo", "description"),
+        image_alt_text_count: product_image_alt_text_count(product),
         price: product_price(product),
         inventory_quantity: product["totalInventory"].to_i,
         status: product["status"],
@@ -113,6 +121,10 @@ module Shopify
 
     def product_image_count(product)
       product.dig("images", "nodes").to_a.size
+    end
+
+    def product_image_alt_text_count(product)
+      product.dig("images", "nodes").to_a.count { |image| image["altText"].present? }
     end
 
     def graphql_client

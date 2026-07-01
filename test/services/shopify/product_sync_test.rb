@@ -33,7 +33,16 @@ module Shopify
             "description" => "A practical canvas tote for daily errands.",
             "status" => "ACTIVE",
             "totalInventory" => 8,
-            "images" => { "nodes" => [ { "id" => "gid://shopify/MediaImage/1" } ] },
+            "seo" => {
+              "title" => "Everyday Tote | North Pine",
+              "description" => "Shop a durable canvas tote for daily errands."
+            },
+            "images" => {
+              "nodes" => [
+                { "id" => "gid://shopify/MediaImage/1", "altText" => "Canvas tote on a table" },
+                { "id" => "gid://shopify/MediaImage/2", "altText" => nil }
+              ]
+            },
             "variants" => { "nodes" => [ { "price" => "24.50" } ] }
           }
         ])
@@ -46,7 +55,10 @@ module Shopify
       assert_equal "gid://shopify/Product/123", snapshot.shopify_product_id
       assert_equal "Everyday Tote", snapshot.title
       assert_equal "A practical canvas tote for daily errands.", snapshot.description
-      assert_equal 1, snapshot.image_count
+      assert_equal 2, snapshot.image_count
+      assert_equal 1, snapshot.image_alt_text_count
+      assert_equal "Everyday Tote | North Pine", snapshot.seo_title
+      assert_equal "Shop a durable canvas tote for daily errands.", snapshot.seo_description
       assert_equal BigDecimal("24.50"), snapshot.price
       assert_equal 8, snapshot.inventory_quantity
       assert_equal "ACTIVE", snapshot.status
@@ -133,7 +145,11 @@ module Shopify
               "description" => "Useful product #{index} description with enough detail for shoppers.",
               "status" => "ACTIVE",
               "totalInventory" => index,
-              "images" => { "nodes" => [ { "id" => "gid://shopify/MediaImage/#{index}" } ] },
+              "seo" => {
+                "title" => "Product #{index} | North Pine",
+                "description" => "Shop product #{index} from North Pine."
+              },
+              "images" => { "nodes" => [ { "id" => "gid://shopify/MediaImage/#{index}", "altText" => "Product #{index}" } ] },
               "variants" => { "nodes" => [ { "price" => (index + 1).to_s } ] }
             }
           end
