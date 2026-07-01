@@ -60,6 +60,7 @@ RAILS_MASTER_KEY=...
 SENTRY_DSN=...
 SENTRY_ENVIRONMENT=staging
 RESEND_API_KEY=...
+MAILER_FROM="StorePilot <noreply@storepilot.ai>"
 ```
 
 Staging uses its own:
@@ -96,6 +97,7 @@ password manager. Do not commit raw values to git.
 - `SENTRY_DSN`
 - `SENTRY_ENVIRONMENT`
 - `RESEND_API_KEY`
+- `MAILER_FROM`
 
 ## Production services
 
@@ -190,7 +192,8 @@ Confirm the event appears in the matching Sentry project with environment
 - `DATABASE_URL` points at the production PostgreSQL database.
 - Optional `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL`, and `CABLE_DATABASE_URL` are set when using separate databases.
 - `REDIS_URL` points at the production Redis instance and uses TLS where available.
-- `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, and `RESEND_API_KEY` point at production projects/accounts.
+- `SENTRY_DSN` and `RESEND_API_KEY` point at production projects/accounts.
+- `MAILER_FROM` uses a Resend-verified sending domain.
 - `bin/kamal setup -d production` completes successfully.
 - `bin/kamal app exec -d production --interactive --reuse "bin/rails db:migrate"` completes successfully.
 - `bin/kamal deploy -d production` completes successfully.
