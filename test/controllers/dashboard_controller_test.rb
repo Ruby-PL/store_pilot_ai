@@ -23,8 +23,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       products_synced_at: 2.hours.ago,
       orders_synced_at: 1.hour.ago
     )
+    sign_in_as(store)
 
-    get root_url(shop: store.shopify_domain)
+    get root_url
 
     assert_response :success
     assert_select "h1", "North Pine"
@@ -45,12 +46,46 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       name: "North Pine",
       shopify_domain: "north-pine.myshopify.com"
     )
+    sign_in_as(store)
 
-    get dashboard_path(shop: store.shopify_domain)
+    get dashboard_path
 
     assert_response :success
     assert_select "h1", "North Pine"
     assert_select ".status-pill", "Connected"
+  end
+
+  test "does not select a store from the shop query parameter without a session" do
+    create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+
+    get dashboard_path(shop: "north-pine.myshopify.com")
+
+    assert_response :success
+    assert_select "h1", "StorePilot AI"
+    assert_select ".status-pill", "Not connected"
+    assert_select "dd", "Not connected"
+  end
+
+  test "ignores shop query parameter tampering when another store is authenticated" do
+    authenticated_store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+    create_store(
+      name: "South Ridge",
+      shopify_domain: "south-ridge.myshopify.com"
+    )
+    sign_in_as(authenticated_store)
+
+    get dashboard_path(shop: "south-ridge.myshopify.com")
+
+    assert_response :success
+    assert_select "h1", "North Pine"
+    assert_select "dd", "north-pine.myshopify.com"
+    assert_select "dd", { text: "south-ridge.myshopify.com", count: 0 }
   end
 
   test "queues product and order sync jobs from the dashboard" do
@@ -58,17 +93,52 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       name: "North Pine",
       shopify_domain: "north-pine.myshopify.com"
     )
+    sign_in_as(store)
 
     assert_enqueued_with(job: Shopify::ProductSyncJob, args: [ store ]) do
       assert_enqueued_with(job: Shopify::OrderSyncJob, args: [ store ]) do
-        post dashboard_sync_path(shop: store.shopify_domain)
+        post dashboard_sync_path
       end
     end
 
-    assert_redirected_to dashboard_path(shop: store.shopify_domain)
+    assert_redirected_to dashboard_path
     follow_redirect!
     assert_response :success
     assert_select ".flash-banner.notice", /Sync queued for north-pine\.myshopify\.com\./
+  end
+
+  test "does not queue sync jobs without an authenticated store" do
+    create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+
+    assert_no_enqueued_jobs do
+      post dashboard_sync_path(shop: "north-pine.myshopify.com")
+    end
+
+    assert_redirected_to dashboard_path
+    follow_redirect!
+    assert_select ".flash-banner.alert", "Connect Shopify first."
+  end
+
+  test "does not queue sync jobs for an inactive authenticated store" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com",
+      active: false,
+      access_token: nil
+    )
+    sign_in_as(store)
+
+    assert_no_enqueued_jobs do
+      post dashboard_sync_path
+    end
+
+    assert_redirected_to dashboard_path
+    follow_redirect!
+    assert_select ".status-pill", "Not connected"
+    assert_select ".flash-banner.alert", "Connect Shopify first."
   end
 
   private
@@ -86,5 +156,13 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       access_token: "token",
       active: true
     }.merge(attributes))
+  end
+
+  def sign_in_as(store)
+    request = ActionDispatch::Request.new(Rails.application.env_config.deep_dup)
+    jar = ActionDispatch::Cookies::CookieJar.build(request, {})
+    jar.signed[ApplicationController::MERCHANT_STORE_COOKIE] = store.id
+
+    cookies[ApplicationController::MERCHANT_STORE_COOKIE] = jar[ApplicationController::MERCHANT_STORE_COOKIE]
   end
 end

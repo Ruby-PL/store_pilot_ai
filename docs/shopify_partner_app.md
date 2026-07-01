@@ -62,59 +62,56 @@ Set `SHOPIFY_REQUIRE_CREDENTIALS=true` in environments where the app must fail f
 
 Additional scopes should be added only when a ticket requires the app to access more Shopify resources.
 
-## Staging app settings
+## Production configuration
 
-Use a separate Shopify Partner app for staging so OAuth, webhook, and sync
-testing cannot affect production configuration.
+Create or update the production Shopify Partner app separately from staging.
+Production must use its own client ID and client secret; do not reuse staging
+credentials.
 
-Configure the staging app with:
+Configure the production app in the Shopify Dev Dashboard with these values:
 
 | Field | Value |
 | --- | --- |
-| App URL | `https://staging.storepilot.ai` |
+| App URL | `https://app.storepilot.ai` |
 | Embedded in Shopify admin | Off |
 | Preferences URL | Leave empty |
 | Webhooks API version | `2026-04` |
 | Required scopes | `read_products,read_orders` |
-| Optional local/demo scope | `write_products` only when demo product seeding is needed |
+| Optional scopes | Leave empty |
 | Legacy install flow | Off |
-| Redirect URL | `https://staging.storepilot.ai/auth/shopify/callback` |
-| App uninstall webhook | `https://staging.storepilot.ai/webhooks/shopify/app_uninstalled` |
+| Redirect URL | `https://app.storepilot.ai/auth/shopify/callback` |
+| App uninstall webhook URL | `https://app.storepilot.ai/webhooks/shopify/app_uninstalled` |
 | Embedded in Shopify POS | Off |
 | App proxy prefix/subpath/URL | Leave empty |
 
-Staging environment values:
+Release the version after changing these values so the production app
+configuration becomes active.
+
+Production environment values:
 
 ```bash
-SHOPIFY_API_KEY=staging_client_id
-SHOPIFY_API_SECRET=staging_client_secret
-SHOPIFY_APP_URL=https://staging.storepilot.ai
-SHOPIFY_REDIRECT_URI=https://staging.storepilot.ai/auth/shopify/callback
+SHOPIFY_API_KEY=production_client_id
+SHOPIFY_API_SECRET=production_client_secret
+SHOPIFY_APP_URL=https://app.storepilot.ai
+SHOPIFY_REDIRECT_URI=https://app.storepilot.ai/auth/shopify/callback
 SHOPIFY_SCOPES=read_products,read_orders
 SHOPIFY_API_VERSION=2026-04
 SHOPIFY_REQUIRE_CREDENTIALS=true
 ```
 
-If demo product seeding is required in a staging development store, temporarily
-include `write_products` in the staging scopes and release the updated Shopify
-app configuration before installing.
+Use `write_products` in production only if the deployed feature set requires
+product writes. Keep the production secret in the deployment secret source or
+password manager, never in `.env.example`, docs, commits, or screenshots.
 
-## Staging install test
+## Production install flow
 
-Use a Shopify development store that is dedicated to staging validation.
-
-1. Confirm `https://staging.storepilot.ai/up` returns healthy.
-2. Confirm the staging Shopify Partner app has the URLs and scopes listed above.
-3. Set staging secrets in Kamal or the password manager.
-4. Open `https://staging.storepilot.ai/auth/shopify?shop=your-dev-store.myshopify.com`.
-5. Complete the Shopify install and OAuth approval flow.
-6. Confirm StorePilot redirects to the merchant dashboard.
-7. Confirm the store record is active in Rails console:
-
-```ruby
-Store.find_by!(shopify_domain: "your-dev-store.myshopify.com").active?
-```
-
-8. Trigger a product/order sync from the dashboard and confirm the jobs complete.
-
-Do not use production Shopify app credentials in staging.
+1. Confirm production DNS and HTTPS are live for `https://app.storepilot.ai`.
+2. Confirm the production app settings above have been released in Shopify.
+3. Deploy StorePilot with the production Shopify environment values.
+4. Open the production install URL for a production test merchant.
+5. Approve the requested scopes in Shopify.
+6. Confirm Shopify redirects back to
+   `https://app.storepilot.ai/auth/shopify/callback`.
+7. Confirm the merchant dashboard loads for the installed shop.
+8. Uninstall the app from the test shop and confirm Shopify sends the
+   `app/uninstalled` webhook to StorePilot.

@@ -71,8 +71,9 @@ module Shopify
       assert_equal "owner@north-pine.example", store.owner_email
       assert_equal "EUR", store.currency
       assert_equal "Basic", store.shopify_plan
-      assert_redirected_to dashboard_path(shop: "north-pine.myshopify.com")
-      assert_includes response.headers["Set-Cookie"], "shopify_oauth_state=;"
+      assert_redirected_to dashboard_path
+      assert_equal store.id, signed_store_cookie
+      assert_includes Array(response.headers["Set-Cookie"]).join("\n"), "shopify_oauth_state=;"
     end
 
     test "install and callback work with cached OAuth state" do
@@ -142,7 +143,8 @@ module Shopify
 
       assert_equal "new_token", store.access_token
       assert_equal "North Pine", store.name
-      assert_redirected_to dashboard_path(shop: "north-pine.myshopify.com")
+      assert_redirected_to dashboard_path
+      assert_equal store.id, signed_store_cookie
     end
 
     private
@@ -204,6 +206,13 @@ module Shopify
 
     def oauth_state_cache_key(state)
       "shopify:oauth:state:#{state}"
+    end
+
+    def signed_store_cookie
+      request = ActionDispatch::Request.new(Rails.application.env_config.deep_dup)
+      jar = ActionDispatch::Cookies::CookieJar.build(request, cookies.to_hash)
+
+      jar.signed[ApplicationController::MERCHANT_STORE_COOKIE]
     end
   end
 end

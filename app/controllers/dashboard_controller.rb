@@ -8,23 +8,15 @@ class DashboardController < ApplicationController
   def sync
     @store = current_store
 
-    return redirect_to dashboard_path(shop: params[:shop]), alert: "Connect Shopify first." if @store.blank? || !@store.active?
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
 
     Shopify::ProductSyncJob.perform_later(@store)
     Shopify::OrderSyncJob.perform_later(@store)
 
-    redirect_to dashboard_path(shop: @store.shopify_domain), notice: "Sync queued for #{@store.shopify_domain}."
+    redirect_to dashboard_path, notice: "Sync queued for #{@store.shopify_domain}."
   end
 
   private
-
-  def current_store
-    shop = Shopify::Oauth::Shop.sanitize(params[:shop])
-
-    return Store.find_by(shopify_domain: shop) if shop.present?
-
-    Store.order(updated_at: :desc).first
-  end
 
   def latest_sync_at(store)
     return if store.blank?
