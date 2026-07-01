@@ -76,6 +76,7 @@ present in the shell take precedence.
 | `SHOPIFY_API_VERSION` | `2026-04` | Shopify Admin API version |
 | `SHOPIFY_REQUIRE_CREDENTIALS` | `false` | Raise during boot when Shopify credentials are missing |
 | `SENTRY_DSN` | Blank | Sentry project DSN for production error monitoring |
+| `SENTRY_ENVIRONMENT` | Rails environment | Environment name sent to Sentry |
 | `SENTRY_RELEASE` | Blank | Optional release identifier attached to Sentry events |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | Optional Sentry performance tracing sample rate |
 
@@ -109,10 +110,12 @@ Use `COUNT=12` or `PREFIX="Demo"` to customize the generated products.
 
 ## Error monitoring
 
-Production exception monitoring uses Sentry when `SENTRY_DSN` is present.
-Without a DSN, Sentry is not initialized and local development stays quiet.
+Staging and production exception monitoring use Sentry when `SENTRY_DSN` is
+present. Use separate Sentry projects or DSNs per environment and set
+`SENTRY_ENVIRONMENT` to `staging` or `production`. Without a DSN, Sentry is not
+initialized and local development stays quiet.
 
-To verify a production Sentry project after setting `SENTRY_DSN`, run:
+To verify a Sentry project after setting `SENTRY_DSN`, run:
 
 ```bash
 bin/rails runner 'ErrorMonitoring.capture_exception(StandardError.new("Sentry smoke test"), context: { source: "manual" })'
