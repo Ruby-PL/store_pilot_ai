@@ -16,4 +16,5 @@ env:
     MAILER_FROM: <%= ENV.fetch("MAILER_FROM", "StorePilot <noreply@storepilot.ai>") %>
     RAILS_LOG_LEVEL: info
     RAILS_SERVE_STATIC_FILES: true
+    SENTRY_ENVIRONMENT: production
     SOLID_QUEUE_IN_PUMA: false
