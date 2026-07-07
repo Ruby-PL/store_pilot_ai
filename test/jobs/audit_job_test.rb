@@ -18,7 +18,10 @@ class AuditJobTest < ActiveJob::TestCase
     end
 
     assert_equal @store, called_store
-    assert_equal [ Audits::ProductQualityRule, Audits::SeoGapRule ], called_rules.map(&:class)
+    assert_equal(
+      [ Audits::ProductQualityRule, Audits::SeoGapRule, Audits::BundleOpportunityRule ],
+      called_rules.map(&:class)
+    )
   end
 
   test "captures errors without raising" do

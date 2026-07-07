@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_104800) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_115500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -60,6 +60,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_104800) do
     t.index ["status"], name: "index_audit_runs_on_status"
     t.index ["store_id", "created_at"], name: "index_audit_runs_on_store_id_and_created_at"
     t.index ["store_id"], name: "index_audit_runs_on_store_id"
+  end
+
+  create_table "order_line_item_snapshots", force: :cascade do |t|
+    t.datetime "captured_at", null: false
+    t.datetime "created_at", null: false
+    t.bigint "order_snapshot_id", null: false
+    t.string "product_title", null: false
+    t.integer "quantity", default: 1, null: false
+    t.string "shopify_line_item_id", null: false
+    t.string "shopify_product_id", null: false
+    t.bigint "store_id", null: false
+    t.decimal "unit_price", precision: 12, scale: 2, default: "0.0", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_snapshot_id", "shopify_line_item_id"], name: "index_order_line_items_on_order_and_line_item"
+    t.index ["order_snapshot_id"], name: "index_order_line_item_snapshots_on_order_snapshot_id"
+    t.index ["store_id", "shopify_product_id"], name: "index_order_line_items_on_store_and_product"
+    t.index ["store_id"], name: "index_order_line_item_snapshots_on_store_id"
   end
 
   create_table "order_snapshots", force: :cascade do |t|
@@ -125,6 +142,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_104800) do
 
   add_foreign_key "audit_results", "audit_runs"
   add_foreign_key "audit_runs", "stores"
+  add_foreign_key "order_line_item_snapshots", "order_snapshots"
+  add_foreign_key "order_line_item_snapshots", "stores"
   add_foreign_key "order_snapshots", "stores"
   add_foreign_key "product_snapshots", "stores"
   add_foreign_key "stores", "users"

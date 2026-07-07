@@ -3,6 +3,7 @@ class Store < ApplicationRecord
 
   belongs_to :user
   has_many :audit_runs, dependent: :destroy
+  has_many :order_line_item_snapshots, dependent: :destroy
   has_many :order_snapshots, dependent: :destroy
   has_many :product_snapshots, dependent: :destroy
 
