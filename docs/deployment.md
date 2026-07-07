@@ -202,7 +202,7 @@ Backup strategy:
 ## Runtime notes
 
 - The app image is built from the committed `Dockerfile`.
-- The image registry is `ghcr.io/ruby-pl/store_pilot_ai`.
+- The image registry is `ghcr.io`, and the image is `ruby-pl/store_pilot_ai`.
 - Static assets are served from the container image.
 - Storage is persisted via the mounted `/rails/storage` volume.
 - `SOLID_QUEUE_IN_PUMA` is disabled in Kamal config so workers run through the separate `job` role.
