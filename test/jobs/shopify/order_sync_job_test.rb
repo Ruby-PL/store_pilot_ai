@@ -16,10 +16,24 @@ module Shopify
       synced_store = nil
 
       with_order_sync_handler(->(store) { synced_store = store }) do
-        Shopify::OrderSyncJob.perform_now(@store)
+        with_first_audit_trigger(->(_store) {}) do
+          Shopify::OrderSyncJob.perform_now(@store)
+        end
       end
 
       assert_equal @store, synced_store
+    end
+
+    test "checks first audit trigger after successful order sync" do
+      triggered_store = nil
+
+      with_order_sync_handler(->(store) { store.update!(orders_synced_at: Time.current) }) do
+        with_first_audit_trigger(->(store) { triggered_store = store }) do
+          Shopify::OrderSyncJob.perform_now(@store)
+        end
+      end
+
+      assert_equal @store, triggered_store
     end
 
     test "logs sync errors without raising" do
@@ -44,6 +58,15 @@ module Shopify
       yield
     ensure
       Shopify::OrderSync.define_singleton_method(:call, original_method)
+    end
+
+    def with_first_audit_trigger(handler)
+      original_method = FirstAuditTrigger.method(:call)
+      FirstAuditTrigger.define_singleton_method(:call, &handler)
+
+      yield
+    ensure
+      FirstAuditTrigger.define_singleton_method(:call, original_method)
     end
 
     def capture_logs

@@ -6,6 +6,7 @@ module Shopify
 
     def perform(store)
       Shopify::OrderSync.call(store)
+      FirstAuditTrigger.call(store.reload)
     rescue Shopify::OrderSync::Error => error
       Rails.logger.error("Shopify order sync job failed for store_id=#{store.id}: #{error.message}")
     end
