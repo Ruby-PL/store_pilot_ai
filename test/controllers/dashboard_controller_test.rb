@@ -142,6 +142,47 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "small", text: "Repeat buyer trend: -25%"
   end
 
+  test "renders dedicated revenue opportunity section" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(
+      status: "completed",
+      started_at: Time.current,
+      completed_at: Time.current,
+      rule_count: 4,
+      overall_score: 70
+    )
+    [
+      [ "bundle_opportunity", "Bundle opportunities found", "Test a bundle offer.", { affected_product_ids: [ "gid://shopify/Product/A" ] } ],
+      [ "dead_stock", "Dead stock found", "Discount stale inventory.", { affected_product_ids: [ "gid://shopify/Product/B" ] } ],
+      [ "top_customer_silence", "High-value customers have gone silent", "Send win-back offer.", { affected_customer_ids: [ "gid://shopify/Customer/A" ] } ],
+      [ "underperforming_product", "Underperforming stocked products found", "Improve content or bundle placement.", { affected_product_ids: [ "gid://shopify/Product/C" ] } ]
+    ].each do |rule_key, title, recommendation, details|
+      audit_run.audit_results.create!(
+        rule_key:,
+        title:,
+        status: "warning",
+        severity: "medium",
+        category: "revenue",
+        priority: "medium",
+        impact: "medium",
+        recommendation:,
+        details:
+      )
+    end
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-item", 4
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Bundle opportunities found"
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Dead stock found"
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "High-value customers have gone silent"
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Underperforming stocked products found"
+    assert_select "section[aria-label='Revenue opportunities'] p", text: "Test a bundle offer."
+    assert_select "section[aria-label='Revenue opportunities'] small", text: /gid:\/\/shopify\/Customer\/A/
+  end
+
   test "renders opportunity empty state when no audit exists" do
     store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
     sign_in_as(store)

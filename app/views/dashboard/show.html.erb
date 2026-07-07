@@ -137,6 +137,37 @@
           </article>
         </div>
 
+        <section class="panel revenue-opportunities" aria-label="Revenue opportunities">
+          <div class="panel-heading">
+            <div><h3>Revenue opportunities</h3><p>Prioritized actions from sales, customer, inventory, and pricing signals</p></div>
+          </div>
+          <% if @revenue_opportunities.empty? %>
+            <div class="empty-state compact">
+              <h3>No revenue opportunities</h3>
+              <p>The latest audit did not find revenue opportunities in the synced data.</p>
+            </div>
+          <% else %>
+            <div class="attention-list">
+              <% @revenue_opportunities.each do |result| %>
+                <div class="attention-item opportunity-item">
+                  <span class="status-icon <%= result.priority == "high" ? "warning" : "info" %>"><%= result.priority&.first&.upcase || "R" %></span>
+                  <div>
+                    <strong><%= result.title %></strong>
+                    <p><%= result.ai_recommendation.presence || result.recommendation.presence || result.description %></p>
+                    <% affected_products = Array(result.details["affected_product_ids"]).first(3) %>
+                    <% affected_customers = Array(result.details["affected_customer_ids"]).first(3) %>
+                    <% if affected_products.any? %>
+                      <small>Affected products: <%= affected_products.join(", ") %></small>
+                    <% elsif affected_customers.any? %>
+                      <small>Affected customers: <%= affected_customers.join(", ") %></small>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </section>
+
         <% if @opportunities.empty? %>
           <div class="empty-state compact">
             <h3>No open opportunities</h3>

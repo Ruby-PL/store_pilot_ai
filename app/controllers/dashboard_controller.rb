@@ -9,6 +9,7 @@ class DashboardController < ApplicationController
     @latest_audit_run = @audit_runs.first
     @selected_audit_run = selected_audit_run(@audit_runs)
     @opportunities = opportunity_results(@selected_audit_run)
+    @revenue_opportunities = @opportunities.select { |result| result.category == "revenue" }
     @opportunities_by_priority = @opportunities.group_by(&:priority)
     @category_scores = @selected_audit_run&.category_scores || {}
   end
