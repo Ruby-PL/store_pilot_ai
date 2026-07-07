@@ -46,11 +46,7 @@ class DashboardController < ApplicationController
     return redirect_to dashboard_path(anchor: "ai-store-manager"), alert: "Ask a question before sending." if question.blank?
 
     conversation = @store.ai_conversations.latest_first.first || @store.ai_conversations.create!(title: question.truncate(80))
-    conversation.ai_messages.create!(role: "user", content: question)
-    conversation.ai_messages.create!(
-      role: "assistant",
-      content: "I saved your question. The AI Store Manager answer service will respond here once it is connected."
-    )
+    Ai::StoreManagerService.call(store: @store, question:, conversation:)
 
     redirect_to dashboard_path(anchor: "ai-store-manager"), notice: "Question saved."
   end

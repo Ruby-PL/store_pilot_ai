@@ -92,6 +92,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Why are sales down?", conversation.title
     assert_equal [ "user", "assistant" ], conversation.ai_messages.order(:created_at).pluck(:role)
     assert_equal "Why are sales down?", conversation.ai_messages.order(:created_at).first.content
+    assert_equal Ai::StoreManagerService::FALLBACK_RESPONSE, conversation.ai_messages.order(:created_at).second.content
   end
 
   test "shows friendly error for blank AI chat question" do
