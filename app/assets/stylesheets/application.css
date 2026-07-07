@@ -40,6 +40,8 @@ h1 { margin-bottom:0; font:700 28px "Manrope",sans-serif; letter-spacing:0; }
 .primary-button { height:42px; padding:0 17px; color:#fff; background:var(--purple); border:0; border-radius:10px; font-weight:600; box-shadow:0 6px 14px #5548e52b; }
 .primary-button span { margin-right:7px; font-size:19px; font-weight:400; }
 .primary-button:disabled { cursor:not-allowed; opacity:.55; box-shadow:none; }
+.draft-button { height:34px; margin-top:10px; padding:0 12px; font-size:12px; box-shadow:none; }
+.email-draft { width:100%; margin-top:10px; padding:10px; color:#161625; background:#f7f7fa; border:1px solid var(--line); border-radius:8px; font:inherit; resize:vertical; }
 .flash-banner { margin-bottom:18px; padding:14px 18px; border:1px solid var(--line); border-radius:13px; background:#fff; }
 .flash-banner p { margin:0; font-size:13px; line-height:1.45; }
 .flash-banner.notice { border-color:#dfe3ff; background:#f4f5ff; color:#2d2a76; }

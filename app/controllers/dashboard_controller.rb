@@ -25,6 +25,16 @@ class DashboardController < ApplicationController
     redirect_to dashboard_path, notice: "Sync queued for #{@store.shopify_domain}."
   end
 
+  def generate_win_back_email_draft
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    result = @store.audit_results.find(params[:id])
+    Ai::WinBackEmailDraftGenerator.call(result)
+
+    redirect_to dashboard_path(audit_run_id: result.audit_run_id, anchor: "opportunities"), notice: "Win-back email draft generated."
+  end
+
   private
 
   def authenticate_shopify_launch!

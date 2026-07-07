@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_123500) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_125500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -36,6 +36,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_123500) do
     t.string "status", default: "passed", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.text "win_back_email_draft"
     t.index ["audit_run_id", "rule_key"], name: "index_audit_results_on_audit_run_id_and_rule_key"
     t.index ["audit_run_id"], name: "index_audit_results_on_audit_run_id"
     t.index ["category"], name: "index_audit_results_on_category"

@@ -183,6 +183,37 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "section[aria-label='Revenue opportunities'] small", text: /gid:\/\/shopify\/Customer\/A/
   end
 
+  test "generates and renders win-back email draft" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(status: "completed", started_at: Time.current, completed_at: Time.current)
+    result = audit_run.audit_results.create!(
+      rule_key: "top_customer_silence",
+      title: "High-value customers have gone silent",
+      status: "warning",
+      severity: "high",
+      category: "revenue",
+      priority: "high",
+      impact: "high",
+      recommendation: "Send a win-back offer.",
+      details: {
+        estimated_lost_revenue: "150.00",
+        affected_customer_ids: [ "gid://shopify/Customer/A" ]
+      }
+    )
+
+    post dashboard_win_back_email_draft_path(result)
+
+    assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "opportunities")
+    assert_includes result.reload.win_back_email_draft, "{{ customer_first_name }}"
+
+    follow_redirect!
+
+    assert_response :success
+    assert_select "textarea.email-draft[readonly]", /customer_first_name/
+    assert_select "textarea.email-draft", /win_back_offer/
+  end
+
   test "renders opportunity empty state when no audit exists" do
     store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
     sign_in_as(store)

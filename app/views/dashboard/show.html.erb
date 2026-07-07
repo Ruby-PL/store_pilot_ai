@@ -161,6 +161,12 @@
                     <% elsif affected_customers.any? %>
                       <small>Affected customers: <%= affected_customers.join(", ") %></small>
                     <% end %>
+                    <% if result.rule_key == "top_customer_silence" %>
+                      <%= button_to "Generate win-back draft", dashboard_win_back_email_draft_path(result), method: :post, class: "primary-button draft-button" %>
+                      <% if result.win_back_email_draft.present? %>
+                        <textarea class="email-draft" readonly rows="8"><%= result.win_back_email_draft %></textarea>
+                      <% end %>
+                    <% end %>
                   </div>
                 </div>
               <% end %>

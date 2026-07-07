@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   post "webhooks/shopify/app_uninstalled", to: "shopify/webhooks#app_uninstalled", as: :shopify_app_uninstalled_webhook
   get "dashboard", to: "dashboard#show", as: :dashboard
   post "dashboard/sync", to: "dashboard#sync", as: :dashboard_sync
+  post "dashboard/audit_results/:id/win_back_email_draft", to: "dashboard#generate_win_back_email_draft", as: :dashboard_win_back_email_draft
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
