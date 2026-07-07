@@ -17,6 +17,9 @@ module Shopify
                 currencyCode
               }
             }
+            customer {
+              id
+            }
             lineItems(first: 50) {
               nodes {
                 id
@@ -114,6 +117,7 @@ module Shopify
         shopify_order_id: order.fetch("id"),
         total_price: amount,
         currency:,
+        shopify_customer_id: order.dig("customer", "id"),
         processed_at: Time.zone.parse(order.fetch("processedAt")),
         captured_at:
       )
