@@ -2,6 +2,7 @@ class Store < ApplicationRecord
   SHOPIFY_DOMAIN_FORMAT = /\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com\z/
 
   belongs_to :user
+  has_many :ai_conversations, dependent: :destroy
   has_many :audit_runs, dependent: :destroy
   has_many :audit_results, through: :audit_runs
   has_many :order_line_item_snapshots, dependent: :destroy

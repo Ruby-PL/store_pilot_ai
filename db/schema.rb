@@ -10,9 +10,30 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_125500) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_133500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "ai_conversations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "store_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["store_id", "updated_at"], name: "index_ai_conversations_on_store_id_and_updated_at"
+    t.index ["store_id"], name: "index_ai_conversations_on_store_id"
+  end
+
+  create_table "ai_messages", force: :cascade do |t|
+    t.bigint "ai_conversation_id", null: false
+    t.integer "completion_tokens", default: 0, null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.integer "prompt_tokens", default: 0, null: false
+    t.string "role", null: false
+    t.integer "total_tokens", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_conversation_id"], name: "index_ai_messages_on_ai_conversation_id"
+  end
 
   create_table "audit_results", force: :cascade do |t|
     t.integer "ai_completion_tokens", default: 0, null: false
@@ -145,6 +166,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_125500) do
     t.index "lower((email)::text)", name: "index_users_on_lower_email", unique: true
   end
 
+  add_foreign_key "ai_conversations", "stores"
+  add_foreign_key "ai_messages", "ai_conversations"
   add_foreign_key "audit_results", "audit_runs"
   add_foreign_key "audit_runs", "stores"
   add_foreign_key "order_line_item_snapshots", "order_snapshots"

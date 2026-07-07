@@ -65,6 +65,46 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".status-pill", "Connected"
   end
 
+  test "renders AI Store Manager chat interface and previous messages" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    conversation = store.ai_conversations.create!(title: "What should I fix first?")
+    conversation.ai_messages.create!(role: "user", content: "What should I fix first?")
+    conversation.ai_messages.create!(role: "assistant", content: "Start with high priority revenue opportunities.")
+    sign_in_as(store)
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "section[aria-label='AI Store Manager'] textarea[aria-label='Ask AI Store Manager']"
+    assert_select ".ai-message.user p", "What should I fix first?"
+    assert_select ".ai-message.assistant p", "Start with high priority revenue opportunities."
+    assert_select ".attention-item strong", "What should I fix first?"
+  end
+
+  test "stores submitted AI chat question and assistant placeholder" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+
+    post dashboard_ai_chat_path, params: { question: "Why are sales down?" }
+
+    assert_redirected_to dashboard_path(anchor: "ai-store-manager")
+    conversation = store.ai_conversations.sole
+    assert_equal "Why are sales down?", conversation.title
+    assert_equal [ "user", "assistant" ], conversation.ai_messages.order(:created_at).pluck(:role)
+    assert_equal "Why are sales down?", conversation.ai_messages.order(:created_at).first.content
+  end
+
+  test "shows friendly error for blank AI chat question" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+
+    post dashboard_ai_chat_path, params: { question: " " }
+
+    assert_redirected_to dashboard_path(anchor: "ai-store-manager")
+    assert_equal "Ask a question before sending.", flash[:alert]
+    assert_equal 0, store.ai_conversations.count
+  end
+
   test "renders opportunity dashboard from latest audit run" do
     store = create_store(
       name: "North Pine",

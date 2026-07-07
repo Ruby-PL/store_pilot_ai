@@ -42,6 +42,15 @@ h1 { margin-bottom:0; font:700 28px "Manrope",sans-serif; letter-spacing:0; }
 .primary-button:disabled { cursor:not-allowed; opacity:.55; box-shadow:none; }
 .draft-button { height:34px; margin-top:10px; padding:0 12px; font-size:12px; box-shadow:none; }
 .email-draft { width:100%; margin-top:10px; padding:10px; color:#161625; background:#f7f7fa; border:1px solid var(--line); border-radius:8px; font:inherit; resize:vertical; }
+.ai-chat-panel { margin-bottom:18px; }
+.ai-chat-body { padding:0 22px 22px; }
+.ai-message-list { display:grid; gap:10px; margin-bottom:14px; }
+.ai-message { padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#f7f7fa; }
+.ai-message.user { background:#eeecff; border-color:#dedafe; }
+.ai-message strong { display:block; margin-bottom:4px; font-size:12px; }
+.ai-message p { margin:0; color:#5f5e6e; font-size:13px; line-height:1.45; }
+.ai-chat-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:start; }
+.ai-chat-form textarea { width:100%; padding:12px; color:#161625; background:#fff; border:1px solid var(--line); border-radius:10px; font:inherit; resize:vertical; }
 .flash-banner { margin-bottom:18px; padding:14px 18px; border:1px solid var(--line); border-radius:13px; background:#fff; }
 .flash-banner p { margin:0; font-size:13px; line-height:1.45; }
 .flash-banner.notice { border-color:#dfe3ff; background:#f4f5ff; color:#2d2a76; }

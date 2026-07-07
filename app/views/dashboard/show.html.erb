@@ -86,6 +86,35 @@
       </section>
     <% end %>
 
+    <% if @store.present? %>
+      <section class="panel ai-chat-panel" id="ai-store-manager" aria-label="AI Store Manager">
+        <div class="panel-heading">
+          <div><h2>AI Store Manager</h2><p>Ask about store performance, products, inventory, or revenue opportunities</p></div>
+        </div>
+        <div class="ai-chat-body">
+          <% if @ai_messages.any? %>
+            <div class="ai-message-list">
+              <% @ai_messages.each do |message| %>
+                <div class="ai-message <%= message.role %>">
+                  <strong><%= message.role.titleize %></strong>
+                  <p><%= message.content %></p>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="empty-state compact">
+              <h3>No conversation yet</h3>
+              <p>Ask the AI Store Manager a question to start a conversation.</p>
+            </div>
+          <% end %>
+          <%= form_with url: dashboard_ai_chat_path, method: :post, class: "ai-chat-form", local: true do |form| %>
+            <%= form.text_area :question, rows: 3, placeholder: "Ask what to fix first, why sales are down, or which products to promote.", aria: { label: "Ask AI Store Manager" } %>
+            <%= form.submit "Ask", class: "primary-button", data: { loading_text: "Thinking..." } %>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+
     <% if @metrics.any? %>
       <section class="metrics-grid" id="store-summary" aria-label="Store summary">
         <% @metrics.each do |metric| %>
@@ -264,6 +293,12 @@
             <span class="status-icon <%= @last_sync_at.present? ? "info" : "warning" %>"><%= @last_sync_at.present? ? "OK" : "!" %></span>
             <div><strong>Initial sync</strong><p><%= @last_sync_at.present? ? "Dashboard data is available" : "Waiting for products or orders" %></p></div>
           </div>
+          <% @ai_conversations.each do |conversation| %>
+            <div class="attention-item">
+              <span class="status-icon info">AI</span>
+              <div><strong><%= conversation.title %></strong><p><%= pluralize(conversation.ai_messages.size, "message") %></p></div>
+            </div>
+          <% end %>
         </div>
       </article>
     </section>

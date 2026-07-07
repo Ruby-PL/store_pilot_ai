@@ -12,6 +12,9 @@ class DashboardController < ApplicationController
     @revenue_opportunities = @opportunities.select { |result| result.category == "revenue" }
     @opportunities_by_priority = @opportunities.group_by(&:priority)
     @category_scores = @selected_audit_run&.category_scores || {}
+    @ai_conversations = ai_conversations(@store)
+    @ai_conversation = @ai_conversations.first
+    @ai_messages = @ai_conversation&.ai_messages&.order(:created_at) || []
   end
 
   def sync
@@ -33,6 +36,23 @@ class DashboardController < ApplicationController
     Ai::WinBackEmailDraftGenerator.call(result)
 
     redirect_to dashboard_path(audit_run_id: result.audit_run_id, anchor: "opportunities"), notice: "Win-back email draft generated."
+  end
+
+  def create_ai_chat_message
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    question = params[:question].to_s.squish
+    return redirect_to dashboard_path(anchor: "ai-store-manager"), alert: "Ask a question before sending." if question.blank?
+
+    conversation = @store.ai_conversations.latest_first.first || @store.ai_conversations.create!(title: question.truncate(80))
+    conversation.ai_messages.create!(role: "user", content: question)
+    conversation.ai_messages.create!(
+      role: "assistant",
+      content: "I saved your question. The AI Store Manager answer service will respond here once it is connected."
+    )
+
+    redirect_to dashboard_path(anchor: "ai-store-manager"), notice: "Question saved."
   end
 
   private
@@ -102,5 +122,11 @@ class DashboardController < ApplicationController
     return audit_runs.first if params[:audit_run_id].blank?
 
     audit_runs.detect { |audit_run| audit_run.id == params[:audit_run_id].to_i } || audit_runs.first
+  end
+
+  def ai_conversations(store)
+    return AiConversation.none if store.blank?
+
+    store.ai_conversations.latest_first.includes(:ai_messages).limit(5)
   end
 end
