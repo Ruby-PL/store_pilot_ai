@@ -23,6 +23,10 @@
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Zm-7 8.4 7 3.9 7-3.9V17l-7 3.9L5 17v-6.6Z"/></svg>
         Store
       </a>
+      <a class="nav-link" href="#opportunities">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19h16v2H4v-2Zm1-3 4-4 3 3 7-8 1.5 1.3L12.1 18l-3-3-2.6 2.5L5 16Z"/></svg>
+        Opportunities
+      </a>
     </nav>
 
     <div class="sidebar-bottom">
@@ -92,6 +96,77 @@
         <% end %>
       </section>
     <% end %>
+
+    <section class="opportunity-section" id="opportunities" aria-label="Opportunity dashboard">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Opportunity engine</p>
+          <h2>Store health</h2>
+        </div>
+        <% if @latest_audit_run&.overall_score.present? %>
+          <strong class="score-badge"><%= @latest_audit_run.overall_score %>/100</strong>
+        <% end %>
+      </div>
+
+      <% if @latest_audit_run.blank? %>
+        <div class="empty-state compact">
+          <h3>No audit yet</h3>
+          <p>After the first audit runs, prioritized revenue, SEO, inventory, and product quality opportunities will appear here.</p>
+        </div>
+      <% elsif @latest_audit_run.status == "running" %>
+        <div class="empty-state compact">
+          <h3>Audit running</h3>
+          <p>StorePilot is reviewing the latest synced store data. Opportunities will update when the audit finishes.</p>
+        </div>
+      <% else %>
+        <div class="metrics-grid category-score-grid">
+          <% @category_scores.each do |category, score| %>
+            <article class="metric-card">
+              <div class="metric-heading"><span><%= category.to_s.humanize %></span></div>
+              <strong><%= score %>/100</strong>
+            </article>
+          <% end %>
+          <article class="metric-card">
+            <div class="metric-heading"><span>Opportunities found</span></div>
+            <strong><%= @opportunities.size %></strong>
+          </article>
+        </div>
+
+        <% if @opportunities.empty? %>
+          <div class="empty-state compact">
+            <h3>No open opportunities</h3>
+            <p>The latest audit did not find prioritized opportunities in the synced data.</p>
+          </div>
+        <% else %>
+          <div class="opportunity-groups">
+            <% %w[high medium low].each do |priority| %>
+              <% results = @opportunities_by_priority.fetch(priority, []) %>
+              <% next if results.empty? %>
+              <article class="panel opportunity-group">
+                <div class="panel-heading">
+                  <div><h3><%= priority.titleize %> priority</h3><p><%= pluralize(results.size, "opportunity") %></p></div>
+                </div>
+                <div class="attention-list">
+                  <% results.each do |result| %>
+                    <div class="attention-item opportunity-item">
+                      <span class="status-icon <%= priority == "high" ? "warning" : "info" %>"><%= result.impact&.first&.upcase || "O" %></span>
+                      <div>
+                        <strong><%= result.title %></strong>
+                        <p><%= result.ai_recommendation.presence || result.recommendation.presence || result.description %></p>
+                        <% affected_products = Array(result.details["affected_product_ids"]).first(3) %>
+                        <% if affected_products.any? %>
+                          <small>Affected products: <%= affected_products.join(", ") %></small>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+          </div>
+        <% end %>
+      <% end %>
+    </section>
 
     <section class="dashboard-grid">
       <article class="panel store-panel">

@@ -35,7 +35,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_stat_card "Order count", "4"
     assert_stat_card "Revenue total", "USD 120.00"
     assert_stat_card "Average order value", "USD 30.00"
-    assert_select ".empty-state", 0
+    assert_select "section[aria-label='Empty dashboard state']", 0
     assert_select "dd", "north-pine.myshopify.com"
     assert_select "dd", "Connected"
     assert_select ".sync-form .sync-button", /Run sync/
@@ -53,6 +53,71 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", "North Pine"
     assert_select ".status-pill", "Connected"
+  end
+
+  test "renders opportunity dashboard from latest audit run" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com",
+      products_synced_at: 1.hour.ago
+    )
+    audit_run = store.audit_runs.create!(
+      started_at: 30.minutes.ago,
+      completed_at: 20.minutes.ago,
+      status: "completed",
+      overall_score: 82,
+      category_scores: {
+        seo: 75,
+        inventory: 85,
+        product_quality: 93,
+        revenue: 75
+      }
+    )
+    audit_run.audit_results.create!(
+      rule_key: "seo_gap",
+      title: "Product SEO gaps found",
+      status: "warning",
+      severity: "high",
+      category: "seo",
+      priority: "high",
+      impact: "high",
+      opportunity_score: 33,
+      recommendation: "Add meta descriptions.",
+      ai_recommendation: "Add unique meta descriptions to your top products.",
+      details: { affected_product_ids: [ "gid://shopify/Product/1" ] }
+    )
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select ".score-badge", "82/100"
+    assert_select ".metric-card", text: /Opportunities found.*1/m
+    assert_select ".opportunity-group h3", "High priority"
+    assert_select ".opportunity-item strong", "Product SEO gaps found"
+    assert_select ".opportunity-item p", "Add unique meta descriptions to your top products."
+    assert_select ".opportunity-item small", /gid:\/\/shopify\/Product\/1/
+  end
+
+  test "renders opportunity empty state when no audit exists" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select "#opportunities h3", "No audit yet"
+  end
+
+  test "renders opportunity loading state for running audit" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    store.audit_runs.create!(started_at: Time.current, status: "running")
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select "#opportunities h3", "Audit running"
   end
 
   test "does not select a store from the shop query parameter without a session" do
