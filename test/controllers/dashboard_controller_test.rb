@@ -109,6 +109,39 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".opportunity-item small", /gid:\/\/shopify\/Product\/1/
   end
 
+  test "renders repeat buyer trend from audit result details" do
+    user = User.create!(email: "merchant@example.com")
+    store = user.stores.create!(shopify_domain: "north-pine.myshopify.com", access_token: "shpat_secret")
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(
+      status: "completed",
+      started_at: Time.current,
+      completed_at: Time.current,
+      rule_count: 1,
+      overall_score: 72
+    )
+    audit_run.audit_results.create!(
+      rule_key: "repeat_buyer_analysis",
+      title: "Repeat buyer retention risk found",
+      status: "warning",
+      severity: "high",
+      category: "revenue",
+      priority: "high",
+      impact: "high",
+      description: "Retention risk",
+      details: {
+        trend: {
+          repeat_buyer_ratio_delta: -0.25
+        }
+      }
+    )
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "small", text: "Repeat buyer trend: -25%"
+  end
+
   test "renders opportunity empty state when no audit exists" do
     store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
     sign_in_as(store)

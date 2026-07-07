@@ -162,6 +162,10 @@
                         <% if affected_products.any? %>
                           <small>Affected products: <%= affected_products.join(", ") %></small>
                         <% end %>
+                        <% if result.rule_key == "repeat_buyer_analysis" && result.details["trend"].present? %>
+                          <% trend = result.details.fetch("trend") %>
+                          <small>Repeat buyer trend: <%= number_to_percentage(trend.fetch("repeat_buyer_ratio_delta").to_f * 100, precision: 0) %></small>
+                        <% end %>
                       </div>
                     </div>
                   <% end %>

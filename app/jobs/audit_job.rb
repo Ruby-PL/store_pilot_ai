@@ -6,7 +6,8 @@ class AuditJob < ApplicationJob
     Audits::SeoGapRule,
     Audits::BundleOpportunityRule,
     Audits::UnderperformingProductRule,
-    Audits::TopCustomerSilenceRule
+    Audits::TopCustomerSilenceRule,
+    Audits::RepeatBuyerAnalysisRule
   ].freeze
 
   def perform(store)
