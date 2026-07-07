@@ -3,7 +3,8 @@ class AuditJob < ApplicationJob
 
   DEFAULT_RULES = [
     Audits::ProductQualityRule,
-    Audits::SeoGapRule
+    Audits::SeoGapRule,
+    Audits::BundleOpportunityRule
   ].freeze
 
   def perform(store)

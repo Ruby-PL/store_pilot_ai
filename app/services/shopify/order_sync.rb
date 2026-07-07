@@ -17,6 +17,20 @@ module Shopify
                 currencyCode
               }
             }
+            lineItems(first: 50) {
+              nodes {
+                id
+                title
+                quantity
+                variant {
+                  price
+                  product {
+                    id
+                    title
+                  }
+                }
+              }
+            }
           }
           pageInfo {
             hasNextPage
@@ -96,13 +110,14 @@ module Shopify
     end
 
     def create_snapshot(order, amount:, currency:, captured_at:)
-      store.order_snapshots.create!(
+      snapshot = store.order_snapshots.create!(
         shopify_order_id: order.fetch("id"),
         total_price: amount,
         currency:,
         processed_at: Time.zone.parse(order.fetch("processedAt")),
         captured_at:
       )
+      create_line_item_snapshots(snapshot, order.fetch("lineItems", {}).fetch("nodes", []), captured_at:)
 
       true
     rescue ArgumentError, KeyError, ActiveRecord::ActiveRecordError => error
@@ -111,6 +126,29 @@ module Shopify
         "shopify_order_id=#{order['id'].presence || 'unknown'}: #{error.message}"
       )
       false
+    end
+
+    def create_line_item_snapshots(order_snapshot, line_items, captured_at:)
+      line_items.each do |line_item|
+        product_id = line_item.dig("variant", "product", "id")
+        next if product_id.blank?
+
+        order_snapshot.order_line_item_snapshots.create!(
+          store:,
+          shopify_line_item_id: line_item.fetch("id"),
+          shopify_product_id: product_id,
+          product_title: line_item.dig("variant", "product", "title").presence || line_item.fetch("title"),
+          quantity: [ line_item["quantity"].to_i, 1 ].max,
+          unit_price: line_item_price(line_item),
+          captured_at:
+        )
+      end
+    end
+
+    def line_item_price(line_item)
+      BigDecimal(line_item.dig("variant", "price").to_s)
+    rescue ArgumentError
+      BigDecimal("0")
     end
 
     def orders_query

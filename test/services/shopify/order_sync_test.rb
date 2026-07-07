@@ -60,6 +60,45 @@ module Shopify
       assert_predicate snapshot.captured_at, :present?
     end
 
+    test "creates order line item snapshots from synced Shopify orders" do
+      with_graphql_responses(
+        order_page([
+          order_hash(
+            id: "gid://shopify/Order/line-items",
+            amount: "42.50",
+            line_items: [
+              line_item_hash(
+                id: "gid://shopify/LineItem/1",
+                product_id: "gid://shopify/Product/1",
+                title: "Canvas Tote",
+                quantity: 2,
+                price: "12.50"
+              ),
+              line_item_hash(
+                id: "gid://shopify/LineItem/2",
+                product_id: "gid://shopify/Product/2",
+                title: "Travel Pouch",
+                quantity: 1,
+                price: "17.50"
+              )
+            ]
+          )
+        ])
+      ) do
+        Shopify::OrderSync.call(@store, since: Time.zone.local(2026, 5, 25))
+      end
+
+      snapshot = @store.order_snapshots.sole
+      line_items = snapshot.order_line_item_snapshots.order(:shopify_line_item_id)
+
+      assert_equal 2, line_items.size
+      assert_equal @store, line_items.first.store
+      assert_equal "gid://shopify/Product/1", line_items.first.shopify_product_id
+      assert_equal "Canvas Tote", line_items.first.product_title
+      assert_equal 2, line_items.first.quantity
+      assert_equal BigDecimal("12.50"), line_items.first.unit_price
+    end
+
     test "queries orders from the last 30 days" do
       captured_variables = nil
 
@@ -154,16 +193,7 @@ module Shopify
           orders_or_amounts
         else
           orders_or_amounts.map.with_index do |amount, index|
-            {
-              "id" => "gid://shopify/Order/#{index}",
-              "processedAt" => "2026-06-24T10:00:00Z",
-              "totalPriceSet" => {
-                "shopMoney" => {
-                  "amount" => amount,
-                  "currencyCode" => "EUR"
-                }
-              }
-            }
+            order_hash(id: "gid://shopify/Order/#{index}", amount:)
           end
         end
 
@@ -173,6 +203,37 @@ module Shopify
           "pageInfo" => {
             "hasNextPage" => has_next_page,
             "endCursor" => end_cursor
+          }
+        }
+      }
+    end
+
+    def order_hash(id:, amount:, processed_at: "2026-06-24T10:00:00Z", line_items: [])
+      {
+        "id" => id,
+        "processedAt" => processed_at,
+        "totalPriceSet" => {
+          "shopMoney" => {
+            "amount" => amount,
+            "currencyCode" => "EUR"
+          }
+        },
+        "lineItems" => {
+          "nodes" => line_items
+        }
+      }
+    end
+
+    def line_item_hash(id:, product_id:, title:, quantity:, price:)
+      {
+        "id" => id,
+        "title" => title,
+        "quantity" => quantity,
+        "variant" => {
+          "price" => price,
+          "product" => {
+            "id" => product_id,
+            "title" => title
           }
         }
       }
