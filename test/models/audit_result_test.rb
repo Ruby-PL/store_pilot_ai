@@ -40,6 +40,45 @@ class AuditResultTest < ActiveSupport::TestCase
     assert_predicate result, :valid?
   end
 
+  test "allows supported opportunity scoring fields" do
+    result = @audit_run.audit_results.build(
+      rule_key: "inventory_risk",
+      title: "Low stock",
+      category: "inventory",
+      priority: "high",
+      impact: "medium",
+      opportunity_score: 32
+    )
+
+    assert_predicate result, :valid?
+  end
+
+  test "rejects unsupported scoring fields" do
+    result = @audit_run.audit_results.build(
+      rule_key: "inventory_risk",
+      title: "Low stock",
+      category: "unsupported",
+      priority: "urgent",
+      impact: "huge"
+    )
+
+    assert_not result.valid?
+    assert_includes result.errors[:category], "is not included in the list"
+    assert_includes result.errors[:priority], "is not included in the list"
+    assert_includes result.errors[:impact], "is not included in the list"
+  end
+
+  test "requires non-negative AI token usage" do
+    result = @audit_run.audit_results.build(
+      rule_key: "seo_gap",
+      title: "SEO issue",
+      ai_total_tokens: -1
+    )
+
+    assert_not result.valid?
+    assert_includes result.errors[:ai_total_tokens], "must be greater than or equal to 0"
+  end
+
   test "destroying audit run destroys results" do
     result = @audit_run.audit_results.create!(rule_key: "product_quality", title: "Missing descriptions")
 

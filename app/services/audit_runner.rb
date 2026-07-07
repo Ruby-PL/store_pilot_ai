@@ -34,6 +34,7 @@ class AuditRunner
 
     failed_rules = run_rules(audit_run)
     audit_run.complete!(failed_rules: failed_rules)
+    StoreHealthScorer.call(audit_run)
     audit_run
   rescue StandardError => exception
     audit_run&.fail!(failed_rules: rules.size)
@@ -72,7 +73,7 @@ class AuditRunner
   end
 
   def persist_result(audit_run, result)
-    audit_run.audit_results.create!(
+    audit_result = audit_run.audit_results.build(
       rule_key: result.rule_key,
       status: result.status,
       severity: result.severity,
@@ -82,6 +83,14 @@ class AuditRunner
       recommendation: result.recommendation,
       details: result.details
     )
+    score = OpportunityScorer.call(audit_result)
+    audit_result.assign_attributes(
+      priority: score.priority,
+      category: score.category,
+      impact: score.impact,
+      opportunity_score: score.opportunity_score
+    )
+    audit_result.save!
   end
 
   def persist_rule_failure(audit_run, rule, exception)

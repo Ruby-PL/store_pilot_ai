@@ -3,6 +3,10 @@ class DashboardController < ApplicationController
     @store = current_store
     @last_sync_at = latest_sync_at(@store)
     @metrics = dashboard_metrics(@store)
+    @latest_audit_run = @store&.audit_runs&.latest_first&.includes(:audit_results)&.first
+    @opportunities = opportunity_results(@latest_audit_run)
+    @opportunities_by_priority = @opportunities.group_by(&:priority)
+    @category_scores = @latest_audit_run&.category_scores || {}
   end
 
   def sync
@@ -43,5 +47,11 @@ class DashboardController < ApplicationController
     return "Not available" if currency.blank?
 
     "#{currency} #{format('%.2f', amount)}"
+  end
+
+  def opportunity_results(audit_run)
+    return [] if audit_run.blank?
+
+    OpportunityScorer.sort(audit_run.audit_results.reject { |result| result.status == "passed" })
   end
 end

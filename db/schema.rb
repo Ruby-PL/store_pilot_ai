@@ -10,17 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_01_151000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_104800) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "audit_results", force: :cascade do |t|
+    t.integer "ai_completion_tokens", default: 0, null: false
+    t.string "ai_model"
+    t.integer "ai_prompt_tokens", default: 0, null: false
+    t.string "ai_provider"
+    t.text "ai_recommendation"
+    t.integer "ai_total_tokens", default: 0, null: false
     t.bigint "audit_run_id", null: false
     t.string "category"
     t.datetime "created_at", null: false
     t.text "description"
     t.jsonb "details", default: {}, null: false
     t.text "error_message"
+    t.string "impact"
+    t.integer "opportunity_score", default: 0, null: false
+    t.string "priority"
     t.text "recommendation"
     t.string "rule_key", null: false
     t.string "severity"
@@ -30,18 +39,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_151000) do
     t.index ["audit_run_id", "rule_key"], name: "index_audit_results_on_audit_run_id_and_rule_key"
     t.index ["audit_run_id"], name: "index_audit_results_on_audit_run_id"
     t.index ["category"], name: "index_audit_results_on_category"
+    t.index ["opportunity_score"], name: "index_audit_results_on_opportunity_score"
+    t.index ["priority", "impact"], name: "index_audit_results_on_priority_and_impact"
     t.index ["status", "severity"], name: "index_audit_results_on_status_and_severity"
   end
 
   create_table "audit_runs", force: :cascade do |t|
+    t.jsonb "category_scores", default: {}, null: false
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.integer "failed_rule_count", default: 0, null: false
+    t.integer "overall_score"
+    t.integer "previous_score_delta"
     t.integer "rule_count", default: 0, null: false
     t.datetime "started_at", null: false
     t.string "status", default: "running", null: false
     t.bigint "store_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["overall_score"], name: "index_audit_runs_on_overall_score"
     t.index ["status"], name: "index_audit_runs_on_status"
     t.index ["store_id", "created_at"], name: "index_audit_runs_on_store_id_and_created_at"
     t.index ["store_id"], name: "index_audit_runs_on_store_id"
