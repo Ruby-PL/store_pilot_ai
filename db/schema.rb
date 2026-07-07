@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_123500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -68,6 +68,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
     t.bigint "order_snapshot_id", null: false
     t.string "product_title", null: false
     t.integer "quantity", default: 1, null: false
+    t.decimal "refunded_amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.integer "refunded_quantity", default: 0, null: false
     t.string "shopify_line_item_id", null: false
     t.string "shopify_product_id", null: false
     t.bigint "store_id", null: false

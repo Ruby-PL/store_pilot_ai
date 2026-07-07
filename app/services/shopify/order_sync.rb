@@ -20,6 +20,23 @@ module Shopify
             customer {
               id
             }
+            refunds(first: 20) {
+              nodes {
+                refundLineItems(first: 50) {
+                  nodes {
+                    quantity
+                    lineItem {
+                      id
+                    }
+                    subtotalSet {
+                      shopMoney {
+                        amount
+                      }
+                    }
+                  }
+                }
+              }
+            }
             lineItems(first: 50) {
               nodes {
                 id
@@ -121,7 +138,12 @@ module Shopify
         processed_at: Time.zone.parse(order.fetch("processedAt")),
         captured_at:
       )
-      create_line_item_snapshots(snapshot, order.fetch("lineItems", {}).fetch("nodes", []), captured_at:)
+      create_line_item_snapshots(
+        snapshot,
+        order.fetch("lineItems", {}).fetch("nodes", []),
+        refunds_by_line_item: refunds_by_line_item(order),
+        captured_at:
+      )
 
       true
     rescue ArgumentError, KeyError, ActiveRecord::ActiveRecordError => error
@@ -132,11 +154,12 @@ module Shopify
       false
     end
 
-    def create_line_item_snapshots(order_snapshot, line_items, captured_at:)
+    def create_line_item_snapshots(order_snapshot, line_items, refunds_by_line_item:, captured_at:)
       line_items.each do |line_item|
         product_id = line_item.dig("variant", "product", "id")
         next if product_id.blank?
 
+        refund = refunds_by_line_item.fetch(line_item.fetch("id"), { quantity: 0, amount: BigDecimal("0") })
         order_snapshot.order_line_item_snapshots.create!(
           store:,
           shopify_line_item_id: line_item.fetch("id"),
@@ -144,8 +167,25 @@ module Shopify
           product_title: line_item.dig("variant", "product", "title").presence || line_item.fetch("title"),
           quantity: [ line_item["quantity"].to_i, 1 ].max,
           unit_price: line_item_price(line_item),
+          refunded_quantity: refund.fetch(:quantity),
+          refunded_amount: refund.fetch(:amount),
           captured_at:
         )
+      end
+    end
+
+    def refunds_by_line_item(order)
+      order.fetch("refunds", {}).fetch("nodes", []).each_with_object({}) do |refund, refunds|
+        refund.fetch("refundLineItems", {}).fetch("nodes", []).each do |refund_line_item|
+          line_item_id = refund_line_item.dig("lineItem", "id")
+          next if line_item_id.blank?
+
+          refunds[line_item_id] ||= { quantity: 0, amount: BigDecimal("0") }
+          refunds[line_item_id][:quantity] += refund_line_item["quantity"].to_i
+          refunds[line_item_id][:amount] += BigDecimal(refund_line_item.dig("subtotalSet", "shopMoney", "amount").to_s)
+        rescue ArgumentError
+          next
+        end
       end
     end
 
