@@ -103,22 +103,27 @@
           <p class="eyebrow">Opportunity engine</p>
           <h2>Store health</h2>
         </div>
-        <% if @latest_audit_run&.overall_score.present? %>
-          <strong class="score-badge"><%= @latest_audit_run.overall_score %>/100</strong>
+        <% if @selected_audit_run&.overall_score.present? %>
+          <strong class="score-badge"><%= @selected_audit_run.overall_score %>/100</strong>
         <% end %>
       </div>
 
-      <% if @latest_audit_run.blank? %>
+      <% if @selected_audit_run.blank? %>
         <div class="empty-state compact">
           <h3>No audit yet</h3>
           <p>After the first audit runs, prioritized revenue, SEO, inventory, and product quality opportunities will appear here.</p>
         </div>
-      <% elsif @latest_audit_run.status == "running" %>
+      <% elsif @selected_audit_run.status == "running" %>
         <div class="empty-state compact">
           <h3>Audit running</h3>
           <p>StorePilot is reviewing the latest synced store data. Opportunities will update when the audit finishes.</p>
         </div>
       <% else %>
+        <% if @selected_audit_run != @latest_audit_run %>
+          <div class="flash-banner notice"><p>Viewing audit from <%= l(@selected_audit_run.started_at, format: :short) %>.</p></div>
+        <% else %>
+          <div class="flash-banner notice"><p>Latest audit highlighted.</p></div>
+        <% end %>
         <div class="metrics-grid category-score-grid">
           <% @category_scores.each do |category, score| %>
             <article class="metric-card">
@@ -167,6 +172,30 @@
         <% end %>
       <% end %>
     </section>
+
+    <% if @audit_runs.any? %>
+      <section class="panel audit-history" aria-label="Audit history">
+        <div class="panel-heading">
+          <div><h2>Audit history</h2><p>Previous runs and score changes</p></div>
+        </div>
+        <div class="attention-list">
+          <% @audit_runs.each do |audit_run| %>
+            <%= link_to dashboard_path(audit_run_id: audit_run.id), class: "attention-item opportunity-item #{audit_run == @latest_audit_run ? 'latest-audit' : ''}" do %>
+              <span class="status-icon <%= audit_run == @latest_audit_run ? "info" : "warning" %>"><%= audit_run.overall_score || "-" %></span>
+              <div>
+                <strong><%= audit_run == @latest_audit_run ? "Latest audit" : "Previous audit" %></strong>
+                <p><%= l(audit_run.started_at, format: :short) %> · <%= audit_run.status.humanize %></p>
+                <% if audit_run.previous_score_delta.present? %>
+                  <small>Score trend: <%= audit_run.previous_score_delta.positive? ? "+" : "" %><%= audit_run.previous_score_delta %></small>
+                <% else %>
+                  <small>Score trend: baseline</small>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
 
     <section class="dashboard-grid">
       <article class="panel store-panel">

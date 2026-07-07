@@ -2,6 +2,16 @@ require "test_helper"
 require "securerandom"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
+  setup do
+    @shopify_config = Rails.application.config.x.shopify
+    @previous_api_secret = @shopify_config.api_secret
+    @shopify_config.api_secret = "test_client_secret"
+  end
+
+  teardown do
+    @shopify_config.api_secret = @previous_api_secret
+  end
+
   test "renders empty dashboard shell without a connected store" do
     get root_url
 
@@ -120,6 +130,62 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "#opportunities h3", "Audit running"
   end
 
+  test "lists audit history and opens older audit runs" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    old_run = store.audit_runs.create!(
+      started_at: 2.days.ago,
+      completed_at: 2.days.ago,
+      status: "completed",
+      overall_score: 70,
+      category_scores: { seo: 70, inventory: 70, product_quality: 70, revenue: 70 }
+    )
+    old_run.audit_results.create!(
+      rule_key: "seo_gap",
+      title: "Old SEO issue",
+      status: "warning",
+      severity: "low",
+      category: "seo",
+      priority: "low",
+      impact: "low",
+      opportunity_score: 11,
+      recommendation: "Old recommendation."
+    )
+    latest_run = store.audit_runs.create!(
+      started_at: 1.day.ago,
+      completed_at: 1.day.ago,
+      status: "completed",
+      overall_score: 85,
+      previous_score_delta: 15,
+      category_scores: { seo: 85, inventory: 85, product_quality: 85, revenue: 85 }
+    )
+    latest_run.audit_results.create!(
+      rule_key: "inventory_risk",
+      title: "Latest inventory issue",
+      status: "warning",
+      severity: "medium",
+      category: "inventory",
+      priority: "medium",
+      impact: "medium",
+      opportunity_score: 22,
+      recommendation: "Latest recommendation."
+    )
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select ".latest-audit strong", "Latest audit"
+    assert_select ".audit-history small", /Score trend: \+15/
+    assert_select ".opportunity-item strong", "Latest inventory issue"
+
+    get dashboard_path(audit_run_id: old_run.id)
+
+    assert_response :success
+    assert_select ".score-badge", "70/100"
+    assert_select ".flash-banner.notice", /Viewing audit from/
+    assert_select ".opportunity-item strong", "Old SEO issue"
+  end
+
   test "does not select a store from the shop query parameter without a session" do
     create_store(
       name: "North Pine",
@@ -132,6 +198,40 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "StorePilot AI"
     assert_select ".status-pill", "Not connected"
     assert_select "dd", "Not connected"
+  end
+
+  test "signed Shopify app launch signs in an installed store" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+
+    get root_path(shopify_launch_query(shop: store.shopify_domain))
+
+    assert_redirected_to dashboard_path
+    assert_equal store.id, signed_store_cookie
+
+    follow_redirect!
+
+    assert_response :success
+    assert_select "h1", "North Pine"
+    assert_select ".status-pill", "Connected"
+  end
+
+  test "signed Shopify app launch starts install when store is not installed" do
+    get root_path(shopify_launch_query(shop: "north-pine.myshopify.com"))
+
+    assert_redirected_to shopify_install_path(shop: "north-pine.myshopify.com")
+  end
+
+  test "Shopify app launch rejects invalid hmac" do
+    get root_path(
+      shop: "north-pine.myshopify.com",
+      timestamp: "1710000000",
+      hmac: "invalid"
+    )
+
+    assert_response :unauthorized
   end
 
   test "ignores shop query parameter tampering when another store is authenticated" do
@@ -229,5 +329,28 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     jar.signed[ApplicationController::MERCHANT_STORE_COOKIE] = store.id
 
     cookies[ApplicationController::MERCHANT_STORE_COOKIE] = jar[ApplicationController::MERCHANT_STORE_COOKIE]
+  end
+
+  def shopify_launch_query(shop:)
+    query = {
+      "shop" => shop,
+      "host" => "YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvbm9ydGgtcGluZQ",
+      "session" => "session-token",
+      "timestamp" => "1710000000"
+    }
+
+    query.merge("hmac" => hmac_for(query))
+  end
+
+  def hmac_for(query)
+    message = query.sort.map { |key, value| "#{key}=#{value}" }.join("&")
+    OpenSSL::HMAC.hexdigest("sha256", @shopify_config.api_secret, message)
+  end
+
+  def signed_store_cookie
+    request = ActionDispatch::Request.new(Rails.application.env_config.deep_dup)
+    jar = ActionDispatch::Cookies::CookieJar.build(request, cookies.to_hash)
+
+    jar.signed[ApplicationController::MERCHANT_STORE_COOKIE]
   end
 end

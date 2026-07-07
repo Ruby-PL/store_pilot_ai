@@ -50,16 +50,17 @@ module Shopify
 
       def self.valid?(query_parameters)
         hmac = query_parameters["hmac"].to_s
-        return false if hmac.blank?
+        secret = Rails.application.config.x.shopify.api_secret
+        return false if hmac.blank? || secret.blank?
 
         digest = OpenSSL::HMAC.hexdigest(
           OpenSSL::Digest.new("sha256"),
-          Rails.application.config.x.shopify.api_secret,
+          secret,
           canonical_message(query_parameters)
         )
 
         ActiveSupport::SecurityUtils.secure_compare(digest, hmac)
-      rescue ArgumentError
+      rescue ArgumentError, TypeError
         false
       end
 
