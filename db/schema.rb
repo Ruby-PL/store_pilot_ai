@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_115500) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -84,10 +84,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_115500) do
     t.datetime "created_at", null: false
     t.string "currency", null: false
     t.datetime "processed_at", null: false
+    t.string "shopify_customer_id"
     t.string "shopify_order_id", null: false
     t.bigint "store_id", null: false
     t.decimal "total_price", precision: 12, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
+    t.index ["store_id", "shopify_customer_id"], name: "index_order_snapshots_on_store_and_customer"
     t.index ["store_id", "shopify_order_id"], name: "index_order_snapshots_on_store_id_and_shopify_order_id"
     t.index ["store_id"], name: "index_order_snapshots_on_store_id"
   end

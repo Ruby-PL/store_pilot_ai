@@ -36,16 +36,12 @@ module Shopify
 
       with_graphql_responses(
         order_page([
-          {
-            "id" => "gid://shopify/Order/123",
-            "processedAt" => processed_at,
-            "totalPriceSet" => {
-              "shopMoney" => {
-                "amount" => "42.50",
-                "currencyCode" => "EUR"
-              }
-            }
-          }
+          order_hash(
+            id: "gid://shopify/Order/123",
+            amount: "42.50",
+            processed_at:,
+            customer_id: "gid://shopify/Customer/123"
+          )
         ])
       ) do
         Shopify::OrderSync.call(@store, since: Time.zone.local(2026, 5, 25))
@@ -56,6 +52,7 @@ module Shopify
       assert_equal "gid://shopify/Order/123", snapshot.shopify_order_id
       assert_equal BigDecimal("42.50"), snapshot.total_price
       assert_equal "EUR", snapshot.currency
+      assert_equal "gid://shopify/Customer/123", snapshot.shopify_customer_id
       assert_equal Time.zone.parse(processed_at), snapshot.processed_at
       assert_predicate snapshot.captured_at, :present?
     end
@@ -66,6 +63,7 @@ module Shopify
           order_hash(
             id: "gid://shopify/Order/line-items",
             amount: "42.50",
+            customer_id: "gid://shopify/Customer/123",
             line_items: [
               line_item_hash(
                 id: "gid://shopify/LineItem/1",
@@ -208,10 +206,11 @@ module Shopify
       }
     end
 
-    def order_hash(id:, amount:, processed_at: "2026-06-24T10:00:00Z", line_items: [])
+    def order_hash(id:, amount:, processed_at: "2026-06-24T10:00:00Z", customer_id: nil, line_items: [])
       {
         "id" => id,
         "processedAt" => processed_at,
+        "customer" => customer_id && { "id" => customer_id },
         "totalPriceSet" => {
           "shopMoney" => {
             "amount" => amount,

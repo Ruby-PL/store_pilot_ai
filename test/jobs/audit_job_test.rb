@@ -19,7 +19,13 @@ class AuditJobTest < ActiveJob::TestCase
 
     assert_equal @store, called_store
     assert_equal(
-      [ Audits::ProductQualityRule, Audits::SeoGapRule, Audits::BundleOpportunityRule, Audits::UnderperformingProductRule ],
+      [
+        Audits::ProductQualityRule,
+        Audits::SeoGapRule,
+        Audits::BundleOpportunityRule,
+        Audits::UnderperformingProductRule,
+        Audits::TopCustomerSilenceRule
+      ],
       called_rules.map(&:class)
     )
   end
