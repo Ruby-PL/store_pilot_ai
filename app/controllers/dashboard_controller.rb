@@ -3,10 +3,12 @@ class DashboardController < ApplicationController
     @store = current_store
     @last_sync_at = latest_sync_at(@store)
     @metrics = dashboard_metrics(@store)
-    @latest_audit_run = @store&.audit_runs&.latest_first&.includes(:audit_results)&.first
-    @opportunities = opportunity_results(@latest_audit_run)
+    @audit_runs = audit_runs(@store)
+    @latest_audit_run = @audit_runs.first
+    @selected_audit_run = selected_audit_run(@audit_runs)
+    @opportunities = opportunity_results(@selected_audit_run)
     @opportunities_by_priority = @opportunities.group_by(&:priority)
-    @category_scores = @latest_audit_run&.category_scores || {}
+    @category_scores = @selected_audit_run&.category_scores || {}
   end
 
   def sync
@@ -53,5 +55,18 @@ class DashboardController < ApplicationController
     return [] if audit_run.blank?
 
     OpportunityScorer.sort(audit_run.audit_results.reject { |result| result.status == "passed" })
+  end
+
+  def audit_runs(store)
+    return AuditRun.none if store.blank?
+
+    store.audit_runs.latest_first.includes(:audit_results)
+  end
+
+  def selected_audit_run(audit_runs)
+    return if audit_runs.blank?
+    return audit_runs.first if params[:audit_run_id].blank?
+
+    audit_runs.detect { |audit_run| audit_run.id == params[:audit_run_id].to_i } || audit_runs.first
   end
 end

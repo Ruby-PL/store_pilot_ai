@@ -120,6 +120,62 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "#opportunities h3", "Audit running"
   end
 
+  test "lists audit history and opens older audit runs" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    old_run = store.audit_runs.create!(
+      started_at: 2.days.ago,
+      completed_at: 2.days.ago,
+      status: "completed",
+      overall_score: 70,
+      category_scores: { seo: 70, inventory: 70, product_quality: 70, revenue: 70 }
+    )
+    old_run.audit_results.create!(
+      rule_key: "seo_gap",
+      title: "Old SEO issue",
+      status: "warning",
+      severity: "low",
+      category: "seo",
+      priority: "low",
+      impact: "low",
+      opportunity_score: 11,
+      recommendation: "Old recommendation."
+    )
+    latest_run = store.audit_runs.create!(
+      started_at: 1.day.ago,
+      completed_at: 1.day.ago,
+      status: "completed",
+      overall_score: 85,
+      previous_score_delta: 15,
+      category_scores: { seo: 85, inventory: 85, product_quality: 85, revenue: 85 }
+    )
+    latest_run.audit_results.create!(
+      rule_key: "inventory_risk",
+      title: "Latest inventory issue",
+      status: "warning",
+      severity: "medium",
+      category: "inventory",
+      priority: "medium",
+      impact: "medium",
+      opportunity_score: 22,
+      recommendation: "Latest recommendation."
+    )
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select ".latest-audit strong", "Latest audit"
+    assert_select ".audit-history small", /Score trend: \+15/
+    assert_select ".opportunity-item strong", "Latest inventory issue"
+
+    get dashboard_path(audit_run_id: old_run.id)
+
+    assert_response :success
+    assert_select ".score-badge", "70/100"
+    assert_select ".flash-banner.notice", /Viewing audit from/
+    assert_select ".opportunity-item strong", "Old SEO issue"
+  end
+
   test "does not select a store from the shop query parameter without a session" do
     create_store(
       name: "North Pine",
