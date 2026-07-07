@@ -10,11 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_074600) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_104800) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "audit_results", force: :cascade do |t|
+    t.integer "ai_completion_tokens", default: 0, null: false
+    t.string "ai_model"
+    t.integer "ai_prompt_tokens", default: 0, null: false
+    t.string "ai_provider"
+    t.text "ai_recommendation"
+    t.integer "ai_total_tokens", default: 0, null: false
     t.bigint "audit_run_id", null: false
     t.string "category"
     t.datetime "created_at", null: false

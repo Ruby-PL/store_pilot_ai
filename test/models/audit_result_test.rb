@@ -68,6 +68,17 @@ class AuditResultTest < ActiveSupport::TestCase
     assert_includes result.errors[:impact], "is not included in the list"
   end
 
+  test "requires non-negative AI token usage" do
+    result = @audit_run.audit_results.build(
+      rule_key: "seo_gap",
+      title: "SEO issue",
+      ai_total_tokens: -1
+    )
+
+    assert_not result.valid?
+    assert_includes result.errors[:ai_total_tokens], "must be greater than or equal to 0"
+  end
+
   test "destroying audit run destroys results" do
     result = @audit_run.audit_results.create!(rule_key: "product_quality", title: "Missing descriptions")
 

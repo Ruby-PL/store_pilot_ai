@@ -14,6 +14,8 @@ class AuditResult < ApplicationRecord
   validates :impact, inclusion: { in: IMPACTS }, allow_blank: true
   validates :category, inclusion: { in: CATEGORIES }, allow_blank: true
   validates :opportunity_score, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :ai_prompt_tokens, :ai_completion_tokens, :ai_total_tokens,
+    numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   scope :prioritized, -> { order(opportunity_score: :desc, created_at: :asc) }
 end
