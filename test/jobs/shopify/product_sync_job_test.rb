@@ -16,7 +16,7 @@ module Shopify
       synced_store = nil
 
       with_product_sync_handler(->(store) { synced_store = store }) do
-        with_first_audit_trigger(->(_store) {}) do
+        with_first_audit_trigger(->(_store) { }) do
           Shopify::ProductSyncJob.perform_now(@store)
         end
       end
