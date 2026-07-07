@@ -56,6 +56,36 @@ module Ai
       assert_equal 0, @result.ai_total_tokens
     end
 
+    test "uses revenue explanation generator for revenue opportunities" do
+      @result.update!(
+        rule_key: "underperforming_product",
+        category: "revenue",
+        title: "Underperforming stocked products found",
+        description: "Products have inventory but weak sales.",
+        recommendation: "Review pricing and bundle placement.",
+        details: {
+          underperforming_products: [ { title: "Slow Tote", units_sold: 0 } ],
+          raw_shopify_payload: { email: "customer@example.com" }
+        }
+      )
+      provider = StaticProvider.new(
+        RecommendationResponse.new(
+          text: "Explain revenue risk. Review placement. Checklist: inspect product page.",
+          provider: "test",
+          model: "test-model",
+          prompt_tokens: 9,
+          completion_tokens: 6,
+          total_tokens: 15
+        )
+      )
+
+      RecommendationGenerator.call(@audit_run, provider:)
+
+      assert_equal "Explain revenue risk. Review placement. Checklist: inspect product page.", @result.reload.ai_recommendation
+      assert_equal "Explain this revenue opportunity in plain English. Return a short explanation, suggested action, and optional checklist.", provider.context.fetch(:task)
+      assert_not_includes provider.context.to_json, "customer@example.com"
+    end
+
     private
 
     class StaticProvider

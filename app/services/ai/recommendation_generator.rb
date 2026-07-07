@@ -20,6 +20,8 @@ module Ai
     attr_reader :audit_run, :provider
 
     def generate_for(result)
+      return RevenueExplanationGenerator.call(result, provider:) if result.category == "revenue"
+
       response = provider.complete_recommendation(context: context_for(result))
       result.update!(
         ai_recommendation: response.text,
