@@ -64,6 +64,9 @@ class AuditRunnerTest < ActiveSupport::TestCase
     assert_equal "warning", result.status
     assert_equal "medium", result.severity
     assert_equal "product_quality", result.category
+    assert_equal "medium", result.priority
+    assert_equal "medium", result.impact
+    assert_equal 22, result.opportunity_score
     assert_equal [ "gid://shopify/Product/1" ], result.details.fetch("affected_product_ids")
   end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_01_151000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_072000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -21,6 +21,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_151000) do
     t.text "description"
     t.jsonb "details", default: {}, null: false
     t.text "error_message"
+    t.string "impact"
+    t.integer "opportunity_score", default: 0, null: false
+    t.string "priority"
     t.text "recommendation"
     t.string "rule_key", null: false
     t.string "severity"
@@ -30,6 +33,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_151000) do
     t.index ["audit_run_id", "rule_key"], name: "index_audit_results_on_audit_run_id_and_rule_key"
     t.index ["audit_run_id"], name: "index_audit_results_on_audit_run_id"
     t.index ["category"], name: "index_audit_results_on_category"
+    t.index ["opportunity_score"], name: "index_audit_results_on_opportunity_score"
+    t.index ["priority", "impact"], name: "index_audit_results_on_priority_and_impact"
     t.index ["status", "severity"], name: "index_audit_results_on_status_and_severity"
   end
 

@@ -72,7 +72,7 @@ class AuditRunner
   end
 
   def persist_result(audit_run, result)
-    audit_run.audit_results.create!(
+    audit_result = audit_run.audit_results.build(
       rule_key: result.rule_key,
       status: result.status,
       severity: result.severity,
@@ -82,6 +82,14 @@ class AuditRunner
       recommendation: result.recommendation,
       details: result.details
     )
+    score = OpportunityScorer.call(audit_result)
+    audit_result.assign_attributes(
+      priority: score.priority,
+      category: score.category,
+      impact: score.impact,
+      opportunity_score: score.opportunity_score
+    )
+    audit_result.save!
   end
 
   def persist_rule_failure(audit_run, rule, exception)
