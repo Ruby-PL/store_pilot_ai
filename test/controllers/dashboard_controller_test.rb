@@ -2,6 +2,16 @@ require "test_helper"
 require "securerandom"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
+  setup do
+    @shopify_config = Rails.application.config.x.shopify
+    @previous_api_secret = @shopify_config.api_secret
+    @shopify_config.api_secret = "test_client_secret"
+  end
+
+  teardown do
+    @shopify_config.api_secret = @previous_api_secret
+  end
+
   test "renders empty dashboard shell without a connected store" do
     get root_url
 
@@ -190,6 +200,40 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", "Not connected"
   end
 
+  test "signed Shopify app launch signs in an installed store" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com"
+    )
+
+    get root_path(shopify_launch_query(shop: store.shopify_domain))
+
+    assert_redirected_to dashboard_path
+    assert_equal store.id, signed_store_cookie
+
+    follow_redirect!
+
+    assert_response :success
+    assert_select "h1", "North Pine"
+    assert_select ".status-pill", "Connected"
+  end
+
+  test "signed Shopify app launch starts install when store is not installed" do
+    get root_path(shopify_launch_query(shop: "north-pine.myshopify.com"))
+
+    assert_redirected_to shopify_install_path(shop: "north-pine.myshopify.com")
+  end
+
+  test "Shopify app launch rejects invalid hmac" do
+    get root_path(
+      shop: "north-pine.myshopify.com",
+      timestamp: "1710000000",
+      hmac: "invalid"
+    )
+
+    assert_response :unauthorized
+  end
+
   test "ignores shop query parameter tampering when another store is authenticated" do
     authenticated_store = create_store(
       name: "North Pine",
@@ -285,5 +329,28 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     jar.signed[ApplicationController::MERCHANT_STORE_COOKIE] = store.id
 
     cookies[ApplicationController::MERCHANT_STORE_COOKIE] = jar[ApplicationController::MERCHANT_STORE_COOKIE]
+  end
+
+  def shopify_launch_query(shop:)
+    query = {
+      "shop" => shop,
+      "host" => "YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvbm9ydGgtcGluZQ",
+      "session" => "session-token",
+      "timestamp" => "1710000000"
+    }
+
+    query.merge("hmac" => hmac_for(query))
+  end
+
+  def hmac_for(query)
+    message = query.sort.map { |key, value| "#{key}=#{value}" }.join("&")
+    OpenSSL::HMAC.hexdigest("sha256", @shopify_config.api_secret, message)
+  end
+
+  def signed_store_cookie
+    request = ActionDispatch::Request.new(Rails.application.env_config.deep_dup)
+    jar = ActionDispatch::Cookies::CookieJar.build(request, cookies.to_hash)
+
+    jar.signed[ApplicationController::MERCHANT_STORE_COOKIE]
   end
 end

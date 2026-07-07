@@ -1,4 +1,6 @@
 class DashboardController < ApplicationController
+  before_action :authenticate_shopify_launch!, only: :show
+
   def show
     @store = current_store
     @last_sync_at = latest_sync_at(@store)
@@ -23,6 +25,27 @@ class DashboardController < ApplicationController
   end
 
   private
+
+  def authenticate_shopify_launch!
+    return if cookies.signed[MERCHANT_STORE_COOKIE].present?
+    return unless shopify_launch_request?
+    return head :unauthorized unless Shopify::Oauth::HmacVerifier.valid?(request.query_parameters)
+
+    shop = Shopify::Oauth::Shop.sanitize(params[:shop])
+    return head :bad_request unless shop
+
+    store = Store.find_by(shopify_domain: shop)
+    if store&.active?
+      sign_in_store(store)
+      redirect_to dashboard_path(anchor: params[:anchor])
+    else
+      redirect_to shopify_install_path(shop:)
+    end
+  end
+
+  def shopify_launch_request?
+    params[:shop].present? && params[:hmac].present? && params[:timestamp].present?
+  end
 
   def latest_sync_at(store)
     return if store.blank?
