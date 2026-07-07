@@ -4,6 +4,7 @@ class AuditJob < ApplicationJob
   DEFAULT_RULES = [
     Audits::ProductQualityRule,
     Audits::SeoGapRule,
+    Audits::DeadStockRule,
     Audits::BundleOpportunityRule,
     Audits::UnderperformingProductRule,
     Audits::TopCustomerSilenceRule,
