@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_072000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_074600) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -39,14 +39,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_072000) do
   end
 
   create_table "audit_runs", force: :cascade do |t|
+    t.jsonb "category_scores", default: {}, null: false
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.integer "failed_rule_count", default: 0, null: false
+    t.integer "overall_score"
+    t.integer "previous_score_delta"
     t.integer "rule_count", default: 0, null: false
     t.datetime "started_at", null: false
     t.string "status", default: "running", null: false
     t.bigint "store_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["overall_score"], name: "index_audit_runs_on_overall_score"
     t.index ["status"], name: "index_audit_runs_on_status"
     t.index ["store_id", "created_at"], name: "index_audit_runs_on_store_id_and_created_at"
     t.index ["store_id"], name: "index_audit_runs_on_store_id"

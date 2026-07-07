@@ -34,6 +34,7 @@ class AuditRunner
 
     failed_rules = run_rules(audit_run)
     audit_run.complete!(failed_rules: failed_rules)
+    StoreHealthScorer.call(audit_run)
     audit_run
   rescue StandardError => exception
     audit_run&.fail!(failed_rules: rules.size)

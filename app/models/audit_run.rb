@@ -8,6 +8,9 @@ class AuditRun < ApplicationRecord
   validates :started_at, presence: true
   validates :rule_count, :failed_rule_count,
     numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :overall_score,
+    numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 100 },
+    allow_nil: true
 
   scope :latest_first, -> { order(created_at: :desc) }
 

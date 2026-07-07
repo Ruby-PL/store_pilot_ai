@@ -46,4 +46,11 @@ class AuditRunTest < ActiveSupport::TestCase
 
     assert_not AuditRun.exists?(audit_run.id)
   end
+
+  test "overall score must be between 0 and 100 when present" do
+    audit_run = @store.audit_runs.build(started_at: Time.current, overall_score: 101)
+
+    assert_not audit_run.valid?
+    assert_includes audit_run.errors[:overall_score], "must be less than or equal to 100"
+  end
 end
