@@ -8,7 +8,8 @@ class AuditJob < ApplicationJob
     Audits::UnderperformingProductRule,
     Audits::TopCustomerSilenceRule,
     Audits::RepeatBuyerAnalysisRule,
-    Audits::ReturnRateRule
+    Audits::ReturnRateRule,
+    Audits::PriceElasticityRule
   ].freeze
 
   def perform(store)

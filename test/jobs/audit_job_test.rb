@@ -26,7 +26,8 @@ class AuditJobTest < ActiveJob::TestCase
         Audits::UnderperformingProductRule,
         Audits::TopCustomerSilenceRule,
         Audits::RepeatBuyerAnalysisRule,
-        Audits::ReturnRateRule
+        Audits::ReturnRateRule,
+        Audits::PriceElasticityRule
       ],
       called_rules.map(&:class)
     )
