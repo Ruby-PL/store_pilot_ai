@@ -1,6 +1,6 @@
 service: store_pilot_ai
 
-image: ghcr.io/ruby-pl/store_pilot_ai
+image: ruby-pl/store_pilot_ai
 
 servers:
   web:

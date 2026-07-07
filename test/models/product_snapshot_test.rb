@@ -14,6 +14,9 @@ class ProductSnapshotTest < ActiveSupport::TestCase
       title: "Everyday Tote",
       description: "A practical canvas tote for daily errands.",
       image_count: 2,
+      image_alt_text_count: 1,
+      seo_title: "Everyday Tote | North Pine",
+      seo_description: "Shop a durable canvas tote for daily errands.",
       price: BigDecimal("24.50"),
       inventory_quantity: 8,
       status: "active",
@@ -25,6 +28,9 @@ class ProductSnapshotTest < ActiveSupport::TestCase
     assert_equal "Everyday Tote", snapshot.title
     assert_equal "A practical canvas tote for daily errands.", snapshot.description
     assert_equal 2, snapshot.image_count
+    assert_equal 1, snapshot.image_alt_text_count
+    assert_equal "Everyday Tote | North Pine", snapshot.seo_title
+    assert_equal "Shop a durable canvas tote for daily errands.", snapshot.seo_description
     assert_equal BigDecimal("24.50"), snapshot.price
     assert_equal 8, snapshot.inventory_quantity
     assert_equal "active", snapshot.status
@@ -47,6 +53,7 @@ class ProductSnapshotTest < ActiveSupport::TestCase
       price: -1,
       inventory_quantity: -1,
       image_count: -1,
+      image_alt_text_count: -1,
       captured_at: Time.current
     )
 
@@ -54,6 +61,7 @@ class ProductSnapshotTest < ActiveSupport::TestCase
     assert_includes snapshot.errors[:price], "must be greater than or equal to 0"
     assert_includes snapshot.errors[:inventory_quantity], "must be greater than or equal to 0"
     assert_includes snapshot.errors[:image_count], "must be greater than or equal to 0"
+    assert_includes snapshot.errors[:image_alt_text_count], "must be greater than or equal to 0"
   end
 
   test "allows blank title so audits can detect missing product titles" do
