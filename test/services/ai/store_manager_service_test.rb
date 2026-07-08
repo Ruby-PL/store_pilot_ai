@@ -101,6 +101,33 @@ module Ai
       assert_includes provider.context.fetch(:task), "top 3 actions"
     end
 
+    test "routes reorder questions through the inventory reorder responder" do
+      create_product("A", inventory_quantity: 0)
+      create_product("B", inventory_quantity: 2)
+      create_sales("A", 12)
+      create_sales("B", 6)
+      provider = StaticProvider.new(
+        RecommendationResponse.new(
+          text: "Reorder A and B.",
+          provider: "test",
+          model: "test-model",
+          prompt_tokens: 7,
+          completion_tokens: 4,
+          total_tokens: 11
+        )
+      )
+
+      conversation = StoreManagerService.call(
+        store: @store,
+        question: "What inventory to reorder?",
+        provider:
+      )
+
+      assert_equal "Reorder A and B.", conversation.ai_messages.order(:created_at).second.content
+      assert_equal 2, provider.context.fetch(:reorder_candidates).size
+      assert_includes provider.context.fetch(:task), "supplier lead times"
+    end
+
     test "can append to an existing conversation" do
       conversation = @store.ai_conversations.create!(title: "Existing")
 
@@ -159,6 +186,36 @@ module Ai
           affected_product_ids: affected_products,
           affected_customer_ids: affected_customers
         }
+      )
+    end
+
+    def create_product(suffix, inventory_quantity:)
+      @store.product_snapshots.create!(
+        shopify_product_id: "gid://shopify/Product/#{suffix}",
+        title: "Product #{suffix}",
+        inventory_quantity:,
+        price: BigDecimal("10"),
+        image_count: 1,
+        status: "ACTIVE",
+        captured_at: Time.current
+      )
+    end
+
+    def create_sales(product_suffix, quantity)
+      order = @store.order_snapshots.create!(
+        shopify_order_id: "gid://shopify/Order/#{SecureRandom.hex(4)}",
+        currency: "EUR",
+        processed_at: Time.current,
+        captured_at: Time.current
+      )
+      order.order_line_item_snapshots.create!(
+        store: @store,
+        shopify_line_item_id: "gid://shopify/LineItem/#{SecureRandom.hex(4)}",
+        shopify_product_id: "gid://shopify/Product/#{product_suffix}",
+        product_title: "Product #{product_suffix}",
+        quantity:,
+        unit_price: BigDecimal("10"),
+        captured_at: Time.current
       )
     end
   end
