@@ -47,6 +47,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_stat_card "Average order value", "USD 30.00"
     assert_select "section[aria-label='Empty dashboard state']", 0
     assert_select "dd", "north-pine.myshopify.com"
+    assert_select "dd", "0/25"
+    assert_select "dd", "Free"
     assert_select "dd", "Connected"
     assert_select ".sync-form .sync-button", /Run sync/
   end

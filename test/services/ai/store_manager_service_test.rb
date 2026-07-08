@@ -161,6 +161,35 @@ module Ai
       assert_includes provider.context.fetch(:task), "best sellers"
     end
 
+    test "blocks when the store has reached the monthly AI limit" do
+      @store.update!(
+        ai_plan: "free",
+        ai_requests_count: 25,
+        ai_requests_counted_on: Time.current.beginning_of_month.to_date
+      )
+      provider = StaticProvider.new(
+        RecommendationResponse.new(
+          text: "This should not be returned.",
+          provider: "test",
+          model: "test-model",
+          prompt_tokens: 2,
+          completion_tokens: 2,
+          total_tokens: 4
+        )
+      )
+
+      conversation = StoreManagerService.call(
+        store: @store,
+        question: "What should I fix first?",
+        provider:
+      )
+
+      assert_equal [ "user", "assistant" ], conversation.ai_messages.order(:created_at).pluck(:role)
+      assert_match(/monthly AI limit/i, conversation.ai_messages.order(:created_at).second.content)
+      assert_nil provider.context
+      assert_equal 25, @store.reload.ai_requests_count
+    end
+
     test "can append to an existing conversation" do
       conversation = @store.ai_conversations.create!(title: "Existing")
 

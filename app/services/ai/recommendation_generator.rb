@@ -21,6 +21,7 @@ module Ai
 
     def generate_for(result)
       return RevenueExplanationGenerator.call(result, provider:) if result.category == "revenue"
+      return result.update!(ai_recommendation: result.audit_run.store.ai_usage_limit_message) unless result.audit_run.store.consume_ai_request!
 
       response = provider.complete_recommendation(context: context_for(result))
       result.update!(

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_133500) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_08_144000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -140,6 +140,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_133500) do
   create_table "stores", force: :cascade do |t|
     t.text "access_token"
     t.boolean "active", default: true, null: false
+    t.string "ai_plan", default: "free", null: false
+    t.integer "ai_requests_count", default: 0, null: false
+    t.date "ai_requests_counted_on"
     t.datetime "created_at", null: false
     t.string "currency"
     t.string "name"

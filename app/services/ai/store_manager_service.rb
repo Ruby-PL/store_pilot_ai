@@ -27,6 +27,8 @@ module Ai
       else
         conversation = current_conversation
         conversation.ai_messages.create!(role: "user", content: question)
+        return blocked_conversation(conversation) unless store.consume_ai_request!
+
         response = provider.complete_recommendation(context: provider_context)
         conversation.ai_messages.create!(
           role: "assistant",
@@ -60,6 +62,12 @@ module Ai
         question:,
         store_context: StoreContextBuilder.call(store)
       }
+    end
+
+    def blocked_conversation(conversation)
+      conversation.ai_messages.create!(role: "assistant", content: store.ai_usage_limit_message)
+      Rails.logger.info("AI Store Manager request blocked by usage limit store_id=#{store.id} conversation_id=#{conversation.id}")
+      conversation
     end
   end
 end

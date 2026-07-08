@@ -282,6 +282,8 @@
         <dl class="detail-list">
           <div><dt>Store</dt><dd><%= store_name %></dd></div>
           <div><dt>Domain</dt><dd><%= @store&.shopify_domain || "Not connected" %></dd></div>
+          <div><dt>AI usage</dt><dd><%= @store&.ai_usage_summary || "Not connected" %></dd></div>
+          <div><dt>AI plan</dt><dd><%= @store&.ai_plan&.titleize || "Not connected" %></dd></div>
           <div><dt>Status</dt><dd><%= connected ? "Connected" : "Not connected" %></dd></div>
           <div><dt>Last sync</dt><dd><%= @last_sync_at ? l(@last_sync_at, format: :short) : "Not synced yet" %></dd></div>
         </dl>

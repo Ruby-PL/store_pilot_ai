@@ -26,6 +26,8 @@ module Ai
     end
 
     def call
+      return blocked_recommendation unless result.audit_run.store.consume_ai_request!
+
       response = provider.complete_recommendation(context:)
       result.update!(
         ai_recommendation: response.text,
@@ -68,6 +70,10 @@ module Ai
         result.description.presence || "A revenue opportunity was detected from the synced store data.",
         result.recommendation.presence || "Review the affected products or customers and choose the highest-impact next action."
       ].join(" ")
+    end
+
+    def blocked_recommendation
+      result.update!(ai_recommendation: result.audit_run.store.ai_usage_limit_message)
     end
   end
 end
