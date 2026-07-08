@@ -44,8 +44,32 @@ module Ai
       messages = conversation.ai_messages.order(:created_at)
       assert_equal [ "user", "assistant" ], messages.pluck(:role)
       assert_equal "Why are sales down?", messages.first.content
-      assert_equal StoreManagerService::FALLBACK_RESPONSE, messages.second.content
+      assert_match(/not enough recent sales data/i, messages.second.content)
       assert_equal 0, messages.second.total_tokens
+    end
+
+    test "routes sales drop questions through the sales drop responder" do
+      create_revenue_opportunity("top_customer_silence", "High-value customers have gone silent")
+      provider = StaticProvider.new(
+        RecommendationResponse.new(
+          text: "Sales are down because repeat buyers are silent.",
+          provider: "test",
+          model: "test-model",
+          prompt_tokens: 8,
+          completion_tokens: 5,
+          total_tokens: 13
+        )
+      )
+
+      conversation = StoreManagerService.call(
+        store: @store,
+        question: "Why are sales down?",
+        provider:
+      )
+
+      assert_equal "Sales are down because repeat buyers are silent.", conversation.ai_messages.order(:created_at).second.content
+      assert_includes provider.context.fetch(:likely_causes), "High-value customers have gone silent."
+      assert_includes provider.context.fetch(:task), "If data is insufficient"
     end
 
     test "can append to an existing conversation" do
@@ -88,6 +112,22 @@ module Ai
       def complete_recommendation(context:)
         raise "provider failed"
       end
+    end
+
+    def create_revenue_opportunity(rule_key, title)
+      audit_run = @store.audit_runs.create!(started_at: Time.current, rule_count: 1)
+      audit_run.audit_results.create!(
+        rule_key:,
+        title:,
+        status: "warning",
+        severity: "medium",
+        category: "revenue",
+        priority: "medium",
+        impact: "medium",
+        opportunity_score: 22,
+        recommendation: "Review the issue.",
+        details: { issue_count: 1 }
+      )
     end
   end
 end

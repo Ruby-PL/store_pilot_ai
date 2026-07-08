@@ -16,18 +16,22 @@ module Ai
     def call
       raise ArgumentError, "question can't be blank" if question.blank?
 
-      conversation = current_conversation
-      conversation.ai_messages.create!(role: "user", content: question)
-      response = provider.complete_recommendation(context: provider_context)
-      conversation.ai_messages.create!(
-        role: "assistant",
-        content: response.text,
-        prompt_tokens: response.prompt_tokens,
-        completion_tokens: response.completion_tokens,
-        total_tokens: response.total_tokens
-      )
-      Rails.logger.info("AI Store Manager response generated store_id=#{store.id} conversation_id=#{conversation.id} provider=#{response.provider} model=#{response.model} total_tokens=#{response.total_tokens}")
-      conversation
+      if SalesDropResponder.matches?(question)
+        SalesDropResponder.call(store:, question:, conversation: current_conversation, provider:)
+      else
+        conversation = current_conversation
+        conversation.ai_messages.create!(role: "user", content: question)
+        response = provider.complete_recommendation(context: provider_context)
+        conversation.ai_messages.create!(
+          role: "assistant",
+          content: response.text,
+          prompt_tokens: response.prompt_tokens,
+          completion_tokens: response.completion_tokens,
+          total_tokens: response.total_tokens
+        )
+        Rails.logger.info("AI Store Manager response generated store_id=#{store.id} conversation_id=#{conversation.id} provider=#{response.provider} model=#{response.model} total_tokens=#{response.total_tokens}")
+        conversation
+      end
     rescue StandardError => exception
       ErrorMonitoring.capture_exception(exception, context: { store_id: store.id, source: "ai_store_manager" })
       fallback_conversation = current_conversation
