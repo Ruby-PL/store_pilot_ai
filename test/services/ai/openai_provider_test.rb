@@ -32,7 +32,12 @@ module Ai
       end
 
       assert_equal "gpt-test", request_body.fetch("model")
+      assert_includes request_body.fetch("input").first.fetch("content"), "Do not invent facts"
+      assert_includes request_body.fetch("input").first.fetch("content"), "automatic price changes"
       assert_includes request_body.fetch("input").last.fetch("content"), "SEO issue"
+      assert_includes request_body.fetch("input").last.fetch("content"), "prompt_template"
+      assert_includes request_body.fetch("input").last.fetch("content"), "merchant_recommendation"
+      assert_includes request_body.fetch("input").last.fetch("content"), "\"version\":\"v1\""
     end
 
     test "requires an API key" do
