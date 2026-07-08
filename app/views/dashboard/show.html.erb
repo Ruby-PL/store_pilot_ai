@@ -89,7 +89,13 @@
     <% if @store.present? %>
       <section class="panel ai-chat-panel" id="ai-store-manager" aria-label="AI Store Manager">
         <div class="panel-heading">
-          <div><h2>AI Store Manager</h2><p>Ask about store performance, products, inventory, or revenue opportunities</p></div>
+          <div>
+            <h2>AI Store Manager</h2>
+            <p>Ask about store performance, products, inventory, or revenue opportunities</p>
+            <% if @ai_conversation.present? %>
+              <small>Conversation: <%= @ai_conversation.title %></small>
+            <% end %>
+          </div>
         </div>
         <div class="ai-chat-body">
           <% if @ai_messages.any? %>
@@ -108,6 +114,7 @@
             </div>
           <% end %>
           <%= form_with url: dashboard_ai_chat_path, method: :post, class: "ai-chat-form", local: true do |form| %>
+            <%= hidden_field_tag :ai_conversation_id, @ai_conversation&.id %>
             <%= form.text_area :question, rows: 3, placeholder: "Ask what to fix first, why sales are down, or which products to promote.", aria: { label: "Ask AI Store Manager" } %>
             <%= form.submit "Ask", class: "primary-button", data: { loading_text: "Thinking..." } %>
           <% end %>
@@ -294,10 +301,10 @@
             <div><strong>Initial sync</strong><p><%= @last_sync_at.present? ? "Dashboard data is available" : "Waiting for products or orders" %></p></div>
           </div>
           <% @ai_conversations.each do |conversation| %>
-            <div class="attention-item">
+            <%= link_to dashboard_path(ai_conversation_id: conversation.id, anchor: "ai-store-manager"), class: "attention-item" do %>
               <span class="status-icon info">AI</span>
               <div><strong><%= conversation.title %></strong><p><%= pluralize(conversation.ai_messages.size, "message") %></p></div>
-            </div>
+            <% end %>
           <% end %>
         </div>
       </article>

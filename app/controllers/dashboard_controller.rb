@@ -13,7 +13,7 @@ class DashboardController < ApplicationController
     @opportunities_by_priority = @opportunities.group_by(&:priority)
     @category_scores = @selected_audit_run&.category_scores || {}
     @ai_conversations = ai_conversations(@store)
-    @ai_conversation = @ai_conversations.first
+    @ai_conversation = selected_ai_conversation(@ai_conversations)
     @ai_messages = @ai_conversation&.ai_messages&.order(:created_at) || []
   end
 
@@ -45,10 +45,10 @@ class DashboardController < ApplicationController
     question = params[:question].to_s.squish
     return redirect_to dashboard_path(anchor: "ai-store-manager"), alert: "Ask a question before sending." if question.blank?
 
-    conversation = @store.ai_conversations.latest_first.first || @store.ai_conversations.create!(title: question.truncate(80))
+    conversation = selected_ai_conversation(@store.ai_conversations.latest_first) || @store.ai_conversations.create!(title: question.truncate(80))
     Ai::StoreManagerService.call(store: @store, question:, conversation:)
 
-    redirect_to dashboard_path(anchor: "ai-store-manager"), notice: "Question saved."
+    redirect_to dashboard_path(ai_conversation_id: conversation.id, anchor: "ai-store-manager"), notice: "Question saved."
   end
 
   private
@@ -124,5 +124,11 @@ class DashboardController < ApplicationController
     return AiConversation.none if store.blank?
 
     store.ai_conversations.latest_first.includes(:ai_messages).limit(5)
+  end
+
+  def selected_ai_conversation(conversations)
+    return if conversations.blank?
+
+    conversations.detect { |conversation| conversation.id == params[:ai_conversation_id].to_i } || conversations.first
   end
 end

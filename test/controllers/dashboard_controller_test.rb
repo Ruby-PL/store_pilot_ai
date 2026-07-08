@@ -81,18 +81,39 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".attention-item strong", "What should I fix first?"
   end
 
-  test "stores submitted AI chat question and assistant placeholder" do
+  test "reopens an older AI conversation from the dashboard" do
     store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    latest_conversation = store.ai_conversations.create!(title: "Latest question")
+    latest_conversation.ai_messages.create!(role: "user", content: "Latest question")
+    latest_conversation.ai_messages.create!(role: "assistant", content: "Latest answer.")
+    older_conversation = store.ai_conversations.create!(title: "What should I fix first?")
+    older_conversation.ai_messages.create!(role: "user", content: "What should I fix first?")
+    older_conversation.ai_messages.create!(role: "assistant", content: "Start with high priority revenue opportunities.")
     sign_in_as(store)
 
-    post dashboard_ai_chat_path, params: { question: "Why are sales down?" }
+    get dashboard_path(ai_conversation_id: older_conversation.id)
 
-    assert_redirected_to dashboard_path(anchor: "ai-store-manager")
-    conversation = store.ai_conversations.sole
-    assert_equal "Why are sales down?", conversation.title
+    assert_response :success
+    assert_select ".ai-chat-panel small", text: /Conversation: What should I fix first\?/
+    assert_select ".ai-message.user p", "What should I fix first?"
+    assert_select ".ai-message.assistant p", "Start with high priority revenue opportunities."
+    assert_select ".attention-item", text: /Latest question/
+    assert_select ".attention-item", text: /What should I fix first\?/
+  end
+
+  test "stores submitted AI chat question and assistant placeholder" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    conversation = store.ai_conversations.create!(title: "Existing conversation")
+    sign_in_as(store)
+
+    post dashboard_ai_chat_path, params: { question: "Why are sales down?", ai_conversation_id: conversation.id }
+
+    assert_redirected_to dashboard_path(ai_conversation_id: conversation.id, anchor: "ai-store-manager")
+    assert_equal "Existing conversation", conversation.reload.title
     assert_equal [ "user", "assistant" ], conversation.ai_messages.order(:created_at).pluck(:role)
     assert_equal "Why are sales down?", conversation.ai_messages.order(:created_at).first.content
     assert_match(/not enough recent sales data/i, conversation.ai_messages.order(:created_at).second.content)
+    assert_equal 1, store.ai_conversations.count
   end
 
   test "shows friendly error for blank AI chat question" do
