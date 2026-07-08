@@ -18,6 +18,8 @@ module Ai
 
       if SalesDropResponder.matches?(question)
         SalesDropResponder.call(store:, question:, conversation: current_conversation, provider:)
+      elsif PrioritizationResponder.matches?(question)
+        PrioritizationResponder.call(store:, question:, conversation: current_conversation, provider:)
       else
         conversation = current_conversation
         conversation.ai_messages.create!(role: "user", content: question)

@@ -49,7 +49,8 @@ module Ai
     end
 
     test "routes sales drop questions through the sales drop responder" do
-      create_revenue_opportunity("top_customer_silence", "High-value customers have gone silent")
+      audit_run = @store.audit_runs.create!(started_at: Time.current, rule_count: 1)
+      create_revenue_opportunity(audit_run, "top_customer_silence", "High-value customers have gone silent")
       provider = StaticProvider.new(
         RecommendationResponse.new(
           text: "Sales are down because repeat buyers are silent.",
@@ -70,6 +71,34 @@ module Ai
       assert_equal "Sales are down because repeat buyers are silent.", conversation.ai_messages.order(:created_at).second.content
       assert_includes provider.context.fetch(:likely_causes), "High-value customers have gone silent."
       assert_includes provider.context.fetch(:task), "If data is insufficient"
+    end
+
+    test "routes prioritization questions through the prioritization responder" do
+      audit_run = @store.audit_runs.create!(started_at: Time.current, rule_count: 3)
+      create_revenue_opportunity(audit_run, "bundle_opportunity", "Bundle opportunities found", 32, [ "gid://shopify/Product/1" ])
+      create_revenue_opportunity(audit_run, "top_customer_silence", "High-value customers have gone silent", 28, [], [ "gid://shopify/Customer/1" ])
+      create_revenue_opportunity(audit_run, "underperforming_product", "Underperforming stocked products found", 26, [ "gid://shopify/Product/3" ])
+      provider = StaticProvider.new(
+        RecommendationResponse.new(
+          text: "Start with bundles, then win back customers, then fix underperforming products.",
+          provider: "test",
+          model: "test-model",
+          prompt_tokens: 10,
+          completion_tokens: 8,
+          total_tokens: 18
+        )
+      )
+
+      conversation = StoreManagerService.call(
+        store: @store,
+        question: "What should I fix first?",
+        provider:
+      )
+
+      assert_equal "Start with bundles, then win back customers, then fix underperforming products.", conversation.ai_messages.order(:created_at).second.content
+      assert_equal 3, provider.context.fetch(:latest_opportunities).size
+      assert_equal "bundle_opportunity", provider.context.fetch(:latest_opportunities).first.fetch(:rule_key)
+      assert_includes provider.context.fetch(:task), "top 3 actions"
     end
 
     test "can append to an existing conversation" do
@@ -114,8 +143,7 @@ module Ai
       end
     end
 
-    def create_revenue_opportunity(rule_key, title)
-      audit_run = @store.audit_runs.create!(started_at: Time.current, rule_count: 1)
+    def create_revenue_opportunity(audit_run, rule_key, title, opportunity_score = 22, affected_products = [], affected_customers = [])
       audit_run.audit_results.create!(
         rule_key:,
         title:,
@@ -124,9 +152,13 @@ module Ai
         category: "revenue",
         priority: "medium",
         impact: "medium",
-        opportunity_score: 22,
+        opportunity_score:,
         recommendation: "Review the issue.",
-        details: { issue_count: 1 }
+        details: {
+          issue_count: 1,
+          affected_product_ids: affected_products,
+          affected_customer_ids: affected_customers
+        }
       )
     end
   end
