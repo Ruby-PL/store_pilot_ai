@@ -22,6 +22,8 @@ module Ai
         PrioritizationResponder.call(store:, question:, conversation: current_conversation, provider:)
       elsif InventoryReorderResponder.matches?(question)
         InventoryReorderResponder.call(store:, question:, conversation: current_conversation, provider:)
+      elsif PromotionResponder.matches?(question)
+        PromotionResponder.call(store:, question:, conversation: current_conversation, provider:)
       else
         conversation = current_conversation
         conversation.ai_messages.create!(role: "user", content: question)

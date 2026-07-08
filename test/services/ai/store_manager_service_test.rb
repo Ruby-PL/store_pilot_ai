@@ -128,6 +128,39 @@ module Ai
       assert_includes provider.context.fetch(:task), "supplier lead times"
     end
 
+    test "routes promotion questions through the promotion responder" do
+      audit_run = @store.audit_runs.create!(started_at: Time.current, rule_count: 2)
+      create_product("A", inventory_quantity: 10)
+      create_product("B", inventory_quantity: 8)
+      create_product("C", inventory_quantity: 6)
+      create_sales("A", 12)
+      create_sales("B", 6)
+      create_sales("C", 1)
+      create_bundle_opportunity(audit_run, %w[A B], 4)
+      create_underperforming_result(audit_run, "C", 1)
+      provider = StaticProvider.new(
+        RecommendationResponse.new(
+          text: "Promote A, B and C.",
+          provider: "test",
+          model: "test-model",
+          prompt_tokens: 8,
+          completion_tokens: 5,
+          total_tokens: 13
+        )
+      )
+
+      conversation = StoreManagerService.call(
+        store: @store,
+        question: "Which products should I promote?",
+        provider:
+      )
+
+      assert_equal "Promote A, B and C.", conversation.ai_messages.order(:created_at).second.content
+      assert_equal 3, provider.context.fetch(:promotion_candidates).size
+      assert_equal "gid://shopify/Product/A", provider.context.fetch(:promotion_candidates).first.fetch(:shopify_product_id)
+      assert_includes provider.context.fetch(:task), "best sellers"
+    end
+
     test "can append to an existing conversation" do
       conversation = @store.ai_conversations.create!(title: "Existing")
 
@@ -216,6 +249,50 @@ module Ai
         quantity:,
         unit_price: BigDecimal("10"),
         captured_at: Time.current
+      )
+    end
+
+    def create_bundle_opportunity(audit_run, product_suffixes, frequency)
+      audit_run.audit_results.create!(
+        rule_key: "bundle_opportunity",
+        title: "Bundle opportunities found",
+        status: "warning",
+        severity: "medium",
+        category: "revenue",
+        priority: "medium",
+        impact: "medium",
+        opportunity_score: 22,
+        recommendation: "Test a bundle.",
+        details: {
+          bundle_pairs: [
+            {
+              "product_ids" => product_suffixes.map { |suffix| "gid://shopify/Product/#{suffix}" },
+              "frequency" => frequency
+            }
+          ]
+        }
+      )
+    end
+
+    def create_underperforming_result(audit_run, suffix, units_sold)
+      audit_run.audit_results.create!(
+        rule_key: "underperforming_product",
+        title: "Underperforming stocked products found",
+        status: "warning",
+        severity: "medium",
+        category: "revenue",
+        priority: "medium",
+        impact: "medium",
+        opportunity_score: 22,
+        recommendation: "Review pricing.",
+        details: {
+          underperforming_products: [
+            {
+              "shopify_product_id" => "gid://shopify/Product/#{suffix}",
+              "units_sold" => units_sold
+            }
+          ]
+        }
       )
     end
   end
