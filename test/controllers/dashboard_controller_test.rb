@@ -338,12 +338,28 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "section[aria-label='Action center'] h3", "Action center"
     assert_select "section[aria-label='Action center'] .opportunity-item strong", "SEO issue found"
+    assert_select "section[aria-label='Action center'] textarea[name='merchant_note']"
+    assert_select "section[aria-label='Action center'] input[name='reference_url']"
     assert_select "section[aria-label='Action center'] button", "Mark done"
+    assert_select "section[aria-label='Follow-up'] h3", "Follow-up"
+    assert_select "section[aria-label='Follow-up'] h3", /No completed actions yet/
 
-    post complete_dashboard_audit_action_path(action)
+    patch dashboard_audit_action_path(action), params: {
+      merchant_note: "Updated metadata and added review request.",
+      reference_url: "https://example.com/shopify",
+      action_status: "completed"
+    }
 
     assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "action-center")
     assert_equal "completed", action.reload.status
+    assert_equal "Updated metadata and added review request.", action.merchant_note
+    assert_equal "https://example.com/shopify", action.reference_url
+
+    follow_redirect!
+
+    assert_response :success
+    assert_select "section[aria-label='Follow-up'] .opportunity-item strong", "SEO issue found"
+    assert_select "section[aria-label='Follow-up'] small", text: /Updated metadata and added review request\./
   end
 
   test "generates and renders win-back email draft" do

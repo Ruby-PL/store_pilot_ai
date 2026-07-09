@@ -144,16 +144,16 @@ class DemoDashboardSeeder
       }
     )
     earlier_run.save!
-    upsert_audit_result(earlier_run, "top_customer_silence", "High-value customers have gone silent", "revenue", "high", "high", "high", 36, "Send win-back offer.", "Customers with the highest historical value have slowed down.")
+    upsert_audit_result(earlier_run, "top_customer_silence", "High-value customers have gone silent", "revenue", "high", "high", "high", 36, "Send win-back offer.", "Customers with the highest historical value have slowed down.", status: "completed", merchant_note: "Sent a win-back email draft and queued a follow-up.", reference_url: "https://admin.shopify.com")
     upsert_audit_result(earlier_run, "bundle_opportunity", "Bundle opportunities found", "revenue", "medium", "medium", "medium", 28, "Test a bundle.", "The store can cross-sell products together.")
     upsert_audit_result(earlier_run, "inventory_pressure", "Some products need reorder attention", "inventory", "low", "medium", "medium", 18, "Review low-stock items.", "A few products are close to running out.")
   end
 
-  def upsert_audit_result(audit_run, rule_key, title, category, priority, impact, severity, score, recommendation, ai_recommendation)
+  def upsert_audit_result(audit_run, rule_key, title, category, priority, impact, severity, score, recommendation, ai_recommendation, status: "warning", merchant_note: nil, reference_url: nil)
     result = audit_run.audit_results.find_or_initialize_by(rule_key:)
     result.assign_attributes(
       title:,
-      status: "warning",
+      status:,
       severity:,
       category:,
       priority:,
@@ -164,16 +164,18 @@ class DemoDashboardSeeder
       details: demo_details(rule_key)
     )
     result.save!
-    upsert_audit_action(result)
+    upsert_audit_action(result, status:, merchant_note:, reference_url:)
   end
 
-  def upsert_audit_action(result)
+  def upsert_audit_action(result, status: "open", merchant_note: nil, reference_url: nil)
     action = result.audit_action || result.build_audit_action(audit_run: result.audit_run)
     action.assign_attributes(
       title: result.title,
       next_step: result.ai_recommendation.presence || result.recommendation.presence || result.description.presence || "Review this opportunity and choose the highest-impact next step.",
       rationale: result.description.presence || "This action was created from the demo audit run.",
-      status: "open"
+      status:,
+      merchant_note:,
+      reference_url:
     )
     action.save!
   end

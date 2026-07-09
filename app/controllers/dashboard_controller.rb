@@ -15,6 +15,8 @@ class DashboardController < ApplicationController
     @store_product_titles = store_product_titles(@store)
     @audit_actions = audit_actions(@selected_audit_run)
     @open_audit_actions = @audit_actions.reject { |action| action.status == "completed" }
+    @completed_audit_actions = completed_audit_actions(@selected_audit_run)
+    @action_summary = action_summary(@selected_audit_run, @audit_actions)
     @ai_conversations = ai_conversations(@store)
     @ai_conversation = selected_ai_conversation(@ai_conversations)
     @ai_messages = @ai_conversation&.ai_messages&.order(:created_at) || []
@@ -60,9 +62,31 @@ class DashboardController < ApplicationController
     return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
 
     action = @store.audit_actions.find(params[:id])
-    action.complete!
+    action.complete!(
+      merchant_note: params[:merchant_note],
+      reference_url: params[:reference_url]
+    )
 
     redirect_to dashboard_path(audit_run_id: action.audit_run_id, anchor: "action-center"), notice: "Action marked complete."
+  end
+
+  def update_audit_action
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    action = @store.audit_actions.find(params[:id])
+    merchant_note = params[:merchant_note].to_s.strip
+    reference_url = params[:reference_url].to_s.strip
+
+    if params[:action_status] == "completed"
+      action.complete!(merchant_note:, reference_url:)
+      notice = "Action marked complete."
+    else
+      action.update_tracking!(merchant_note:, reference_url:)
+      notice = "Action updated."
+    end
+
+    redirect_to dashboard_path(audit_run_id: action.audit_run_id, anchor: "action-center"), notice:
   end
 
   private
@@ -177,5 +201,22 @@ class DashboardController < ApplicationController
     return AuditAction.none if audit_run.blank?
 
     audit_run.audit_actions.includes(:audit_result).open_first
+  end
+
+  def completed_audit_actions(audit_run)
+    return AuditAction.none if audit_run.blank?
+
+    audit_run.audit_actions.includes(:audit_result).completed_first
+  end
+
+  def action_summary(audit_run, actions)
+    return {} if audit_run.blank?
+
+    {
+      open_count: actions.count { |action| action.status == "open" },
+      completed_count: actions.count { |action| action.status == "completed" },
+      previous_score_delta: audit_run.previous_score_delta,
+      completed_at: audit_run.completed_at
+    }
   end
 end

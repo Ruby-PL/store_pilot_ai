@@ -209,7 +209,7 @@
               <h3>Action center</h3>
               <p>Concrete work items pulled from the latest audit.</p>
             </div>
-            <small><%= pluralize(@open_audit_actions.size, "open action") %></small>
+            <small><%= pluralize(@open_audit_actions.size, "open action") %> · <%= pluralize(@completed_audit_actions.size, "completed") %></small>
           </div>
           <% if @open_audit_actions.empty? %>
             <div class="empty-state compact">
@@ -221,14 +221,78 @@
               <% @open_audit_actions.each do |action| %>
                 <div class="attention-item opportunity-item">
                   <span class="status-icon info">TO</span>
+                  <%= form_with url: dashboard_audit_action_path(action), method: :patch, class: "audit-action-form", local: true do %>
+                    <div>
+                      <strong><%= action.title %></strong>
+                      <p><span class="opportunity-label">Next step</span> <%= action.audit_result.ai_recommendation.presence || action.next_step %></p>
+                      <% if action.rationale.present? %>
+                        <small><%= action.rationale %></small>
+                      <% end %>
+                      <small>From: <%= action.audit_result.title %></small>
+                      <div class="audit-action-fields">
+                        <div class="field">
+                          <label for="<%= dom_id(action, :note) %>">Note</label>
+                          <%= text_area_tag :merchant_note, action.merchant_note, id: dom_id(action, :note), rows: 2, placeholder: "What did you try or decide?" %>
+                        </div>
+                        <div class="field">
+                          <label for="<%= dom_id(action, :reference_url) %>">Reference link</label>
+                          <%= text_field_tag :reference_url, action.reference_url, id: dom_id(action, :reference_url), placeholder: "https://..." %>
+                        </div>
+                      </div>
+                      <div class="audit-action-buttons">
+                        <%= submit_tag "Save note", name: "action_status", value: "open", class: "primary-button draft-button secondary" %>
+                        <%= submit_tag "Mark done", name: "action_status", value: "completed", class: "primary-button draft-button" %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </section>
+
+        <section class="panel follow-up-panel" aria-label="Follow-up">
+          <div class="panel-heading">
+            <div>
+              <h3>Follow-up</h3>
+              <p>Track what changed after the last audit.</p>
+            </div>
+          </div>
+          <div class="metrics-grid follow-up-metrics">
+            <article class="metric-card">
+              <div class="metric-heading"><span>Open actions</span></div>
+              <strong><%= @action_summary.fetch(:open_count, 0) %></strong>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Completed actions</span></div>
+              <strong><%= @action_summary.fetch(:completed_count, 0) %></strong>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Score trend</span></div>
+              <strong><%= @action_summary.fetch(:previous_score_delta, 0).to_i.positive? ? "+" : "" %><%= @action_summary.fetch(:previous_score_delta, 0).to_i %></strong>
+            </article>
+          </div>
+
+          <% if @completed_audit_actions.empty? %>
+            <div class="empty-state compact">
+              <h3>No completed actions yet</h3>
+              <p>Mark an action done to see it move into the follow-up history.</p>
+            </div>
+          <% else %>
+            <div class="attention-list">
+              <% @completed_audit_actions.each do |action| %>
+                <div class="attention-item opportunity-item">
+                  <span class="status-icon info">OK</span>
                   <div>
                     <strong><%= action.title %></strong>
-                    <p><span class="opportunity-label">Next step</span> <%= action.audit_result.ai_recommendation.presence || action.next_step %></p>
-                    <% if action.rationale.present? %>
-                      <small><%= action.rationale %></small>
+                    <p><span class="opportunity-label">Completed next step</span> <%= action.audit_result.ai_recommendation.presence || action.next_step %></p>
+                    <% if action.merchant_note.present? %>
+                      <small>Merchant note: <%= action.merchant_note %></small>
                     <% end %>
-                    <small>From: <%= action.audit_result.title %></small>
-                    <%= button_to "Mark done", complete_dashboard_audit_action_path(action), method: :post, class: "primary-button draft-button" %>
+                    <% if action.reference_url.present? %>
+                      <small>Reference: <%= action.reference_url %></small>
+                    <% end %>
+                    <small>Completed <%= l(action.completed_at, format: :short) if action.completed_at.present? %></small>
                   </div>
                 </div>
               <% end %>
