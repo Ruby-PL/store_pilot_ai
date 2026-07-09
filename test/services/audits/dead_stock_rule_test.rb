@@ -13,7 +13,7 @@ module Audits
       assert_nil @rule.call(store: @store, audit_run: @audit_run)
     end
 
-    test "returns nil when stocked products are recent" do
+    test "returns nil when products are recent" do
       create_product!(shopify_product_id: "gid://shopify/Product/recent", captured_at: 10.days.ago)
 
       assert_nil @rule.call(store: @store, audit_run: @audit_run)

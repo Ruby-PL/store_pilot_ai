@@ -43,11 +43,11 @@ module Ai
         input: [
           {
             role: "system",
-            content: "Write concise, merchant-friendly ecommerce recommendations from structured audit context. Do not mention internal IDs."
+            content: PromptTemplate.system_prompt
           },
           {
             role: "user",
-            content: JSON.generate(context)
+            content: JSON.generate(context.merge(prompt_template: PromptTemplate.metadata))
           }
         ]
       }.to_json

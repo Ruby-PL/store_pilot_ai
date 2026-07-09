@@ -86,6 +86,64 @@
       </section>
     <% end %>
 
+    <% if @store_overview_rows.any? %>
+      <section class="panel store-overview" aria-label="Store overview">
+        <div class="panel-heading">
+          <div>
+            <h2>What StorePilot AI helps merchants do</h2>
+            <p>A short overview of the problems this app is built to solve.</p>
+          </div>
+        </div>
+        <div class="attention-list">
+          <% @store_overview_rows.each do |row| %>
+            <div class="attention-item">
+              <span class="status-icon info">AI</span>
+              <div>
+                <strong><%= row[:title] %></strong>
+                <p><%= row[:body] %></p>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+
+    <% if @store.present? %>
+      <section class="panel ai-chat-panel" id="ai-store-manager" aria-label="AI Store Manager">
+        <div class="panel-heading">
+          <div>
+            <h2>AI Store Manager</h2>
+            <p>Ask about store performance, products, inventory, or revenue opportunities</p>
+            <% if @ai_conversation.present? %>
+              <small>Conversation: <%= @ai_conversation.title %></small>
+            <% end %>
+          </div>
+        </div>
+        <div class="ai-chat-body">
+          <% if @ai_messages.any? %>
+            <div class="ai-message-list">
+              <% @ai_messages.each do |message| %>
+                <div class="ai-message <%= message.role %>">
+                  <strong><%= message.role.titleize %></strong>
+                  <p><%= message.content %></p>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="empty-state compact">
+              <h3>No conversation yet</h3>
+              <p>Ask the AI Store Manager a question to start a conversation.</p>
+            </div>
+          <% end %>
+          <%= form_with url: dashboard_ai_chat_path, method: :post, class: "ai-chat-form", local: true do |form| %>
+            <%= hidden_field_tag :ai_conversation_id, @ai_conversation&.id %>
+            <%= form.text_area :question, rows: 3, placeholder: "Ask what to fix first, why sales are down, or which products to promote.", aria: { label: "Ask AI Store Manager" } %>
+            <%= form.submit "Ask", class: "primary-button", data: { loading_text: "Thinking..." } %>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+
     <% if @metrics.any? %>
       <section class="metrics-grid" id="store-summary" aria-label="Store summary">
         <% @metrics.each do |metric| %>
@@ -100,8 +158,9 @@
     <section class="opportunity-section" id="opportunities" aria-label="Opportunity dashboard">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Opportunity engine</p>
-          <h2>Store health</h2>
+          <p class="eyebrow">Audit results</p>
+          <h2>Store health opportunities</h2>
+          <p>Each audit result shows the opportunity and the next action to take.</p>
         </div>
         <% if @selected_audit_run&.overall_score.present? %>
           <strong class="score-badge"><%= @selected_audit_run.overall_score %>/100</strong>
@@ -124,6 +183,13 @@
         <% else %>
           <div class="flash-banner notice"><p>Latest audit highlighted.</p></div>
         <% end %>
+        <div class="audit-callout">
+          <span class="status-icon info">AI</span>
+          <div>
+            <strong>Opportunities and next steps</strong>
+            <p>The audit highlights what matters most, explains why it matters, and gives you a clear action to take next.</p>
+          </div>
+        </div>
         <div class="metrics-grid category-score-grid">
           <% @category_scores.each do |category, score| %>
             <article class="metric-card">
@@ -136,6 +202,94 @@
             <strong><%= @opportunities.size %></strong>
           </article>
         </div>
+
+        <section class="panel action-center" id="action-center" aria-label="Action center">
+          <div class="panel-heading">
+            <div>
+              <h3>Action center</h3>
+              <p>Concrete work items pulled from the latest audit.</p>
+            </div>
+            <small><%= pluralize(@open_audit_actions.size, "open action") %></small>
+          </div>
+          <% if @open_audit_actions.empty? %>
+            <div class="empty-state compact">
+              <h3>No open actions</h3>
+              <p>The current audit has no unfinished actions. Run a new audit to generate more work items.</p>
+            </div>
+          <% else %>
+            <div class="attention-list">
+              <% @open_audit_actions.each do |action| %>
+                <div class="attention-item opportunity-item">
+                  <span class="status-icon info">TO</span>
+                  <div>
+                    <strong><%= action.title %></strong>
+                    <p><span class="opportunity-label">Next step</span> <%= action.audit_result.ai_recommendation.presence || action.next_step %></p>
+                    <% if action.rationale.present? %>
+                      <small><%= action.rationale %></small>
+                    <% end %>
+                    <small>From: <%= action.audit_result.title %></small>
+                    <%= button_to "Mark done", complete_dashboard_audit_action_path(action), method: :post, class: "primary-button draft-button" %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </section>
+
+        <section class="panel revenue-opportunities" aria-label="Revenue opportunities">
+          <div class="panel-heading">
+            <div><h3>Revenue opportunities</h3><p>Prioritized actions from sales, customer, inventory, and pricing signals</p></div>
+          </div>
+          <% if @revenue_opportunities.empty? %>
+            <div class="empty-state compact">
+              <h3>No revenue opportunities</h3>
+              <p>The latest audit did not find revenue opportunities in the synced data.</p>
+            </div>
+          <% else %>
+            <div class="attention-list">
+              <% @revenue_opportunities.each do |result| %>
+                <div class="attention-item opportunity-item">
+                  <span class="status-icon <%= result.priority == "high" ? "warning" : "info" %>"><%= result.priority&.first&.upcase || "R" %></span>
+                  <div>
+                    <strong><%= result.title %></strong>
+                    <p><span class="opportunity-label">What this means</span> <%= result.description.presence || result.recommendation.presence || "Audit result detected." %></p>
+                    <p><span class="opportunity-label">What to do</span> <%= result.ai_recommendation.presence || result.recommendation.presence || "Review this opportunity and choose the highest-impact next step." %></p>
+                    <% affected_products = Array(result.details["affected_product_ids"]).first(3) %>
+                    <% affected_customers = Array(result.details["affected_customer_ids"]).first(3) %>
+                    <% if affected_products.any? %>
+                      <small>Affected products: <%= affected_products.join(", ") %></small>
+                    <% elsif affected_customers.any? %>
+                      <small>Affected customers: <%= affected_customers.join(", ") %></small>
+                    <% end %>
+                    <% if result.rule_key == "bundle_opportunity" && Array(result.details["bundle_pairs"]).any? %>
+                      <% bundle_examples = Array(result.details["bundle_pairs"]).first(2).map do |pair| %>
+                        <% product_names = Array(pair["product_ids"]).map { |product_id| @store_product_titles.fetch(product_id, product_id) } %>
+                        <% "#{product_names.join(' + ')} (#{pair['frequency']} orders)" %>
+                      <% end %>
+                      <% if bundle_examples.any? %>
+                        <small>Example bundles: <%= bundle_examples.join(" | ") %></small>
+                      <% end %>
+                      <% top_bundle = Array(result.details["bundle_pairs"]).first %>
+                      <% if top_bundle.present? %>
+                        <% top_product_names = Array(top_bundle["product_ids"]).map { |product_id| @store_product_titles.fetch(product_id, product_id) } %>
+                        <% rationale = "Why this can work: #{top_product_names.join(' + ')} already appear together in #{top_bundle['frequency']} orders" %>
+                        <% rationale += " with #{number_to_percentage(top_bundle['confidence'].to_f * 100, precision: 0)} confidence" if top_bundle["confidence"].present? %>
+                        <% rationale += ", so this bundle matches existing buying behavior." %>
+                        <small><%= rationale %></small>
+                      <% end %>
+                    <% end %>
+                    <% if result.rule_key == "top_customer_silence" %>
+                      <%= button_to "Generate win-back draft", dashboard_win_back_email_draft_path(result), method: :post, class: "primary-button draft-button" %>
+                      <% if result.win_back_email_draft.present? %>
+                        <textarea class="email-draft" readonly rows="8"><%= result.win_back_email_draft %></textarea>
+                      <% end %>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </section>
 
         <% if @opportunities.empty? %>
           <div class="empty-state compact">
@@ -157,10 +311,28 @@
                       <span class="status-icon <%= priority == "high" ? "warning" : "info" %>"><%= result.impact&.first&.upcase || "O" %></span>
                       <div>
                         <strong><%= result.title %></strong>
-                        <p><%= result.ai_recommendation.presence || result.recommendation.presence || result.description %></p>
+                        <p><span class="opportunity-label">What this means</span> <%= result.description.presence || result.recommendation.presence || "Audit result detected." %></p>
+                        <p><span class="opportunity-label">What to do</span> <%= result.ai_recommendation.presence || result.recommendation.presence || "Review this opportunity and choose the highest-impact next step." %></p>
                         <% affected_products = Array(result.details["affected_product_ids"]).first(3) %>
                         <% if affected_products.any? %>
                           <small>Affected products: <%= affected_products.join(", ") %></small>
+                        <% end %>
+                        <% if result.rule_key == "bundle_opportunity" && Array(result.details["bundle_pairs"]).any? %>
+                          <% bundle_examples = Array(result.details["bundle_pairs"]).first(2).map do |pair| %>
+                            <% product_names = Array(pair["product_ids"]).map { |product_id| @store_product_titles.fetch(product_id, product_id) } %>
+                            <% "#{product_names.join(' + ')} (#{pair['frequency']} orders)" %>
+                          <% end %>
+                          <% if bundle_examples.any? %>
+                            <small>Example bundles: <%= bundle_examples.join(" | ") %></small>
+                          <% end %>
+                          <% top_bundle = Array(result.details["bundle_pairs"]).first %>
+                          <% if top_bundle.present? %>
+                            <% top_product_names = Array(top_bundle["product_ids"]).map { |product_id| @store_product_titles.fetch(product_id, product_id) } %>
+                            <% rationale = "Why this can work: #{top_product_names.join(' + ')} already appear together in #{top_bundle['frequency']} orders" %>
+                            <% rationale += " with #{number_to_percentage(top_bundle['confidence'].to_f * 100, precision: 0)} confidence" if top_bundle["confidence"].present? %>
+                            <% rationale += ", so this bundle matches existing buying behavior." %>
+                            <small><%= rationale %></small>
+                          <% end %>
                         <% end %>
                         <% if result.rule_key == "repeat_buyer_analysis" && result.details["trend"].present? %>
                           <% trend = result.details.fetch("trend") %>
@@ -209,6 +381,8 @@
         <dl class="detail-list">
           <div><dt>Store</dt><dd><%= store_name %></dd></div>
           <div><dt>Domain</dt><dd><%= @store&.shopify_domain || "Not connected" %></dd></div>
+          <div><dt>AI usage</dt><dd><%= @store&.ai_usage_summary || "Not connected" %></dd></div>
+          <div><dt>AI plan</dt><dd><%= @store&.ai_plan&.titleize || "Not connected" %></dd></div>
           <div><dt>Status</dt><dd><%= connected ? "Connected" : "Not connected" %></dd></div>
           <div><dt>Last sync</dt><dd><%= @last_sync_at ? l(@last_sync_at, format: :short) : "Not synced yet" %></dd></div>
         </dl>
@@ -227,6 +401,12 @@
             <span class="status-icon <%= @last_sync_at.present? ? "info" : "warning" %>"><%= @last_sync_at.present? ? "OK" : "!" %></span>
             <div><strong>Initial sync</strong><p><%= @last_sync_at.present? ? "Dashboard data is available" : "Waiting for products or orders" %></p></div>
           </div>
+          <% @ai_conversations.each do |conversation| %>
+            <%= link_to dashboard_path(ai_conversation_id: conversation.id, anchor: "ai-store-manager"), class: "attention-item" do %>
+              <span class="status-icon info">AI</span>
+              <div><strong><%= conversation.title %></strong><p><%= pluralize(conversation.ai_messages.size, "message") %></p></div>
+            <% end %>
+          <% end %>
         </div>
       </article>
     </section>

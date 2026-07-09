@@ -1,0 +1,276 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../bin/load_env"
+require_relative "../config/environment"
+
+class DemoDashboardSeeder
+  PRODUCT_DEFS = [
+    { id: "gid://shopify/Product/demo-1", title: "Starter Tote", price: "24.00", inventory: 38, status: "ACTIVE", image_count: 2, seo_title: "Starter Tote", seo_description: "A simple branded tote for daily use." },
+    { id: "gid://shopify/Product/demo-2", title: "Bundle Builder Kit", price: "42.00", inventory: 22, status: "ACTIVE", image_count: 3, seo_title: "Bundle Builder Kit", seo_description: "A kit designed for product bundles and upsells." },
+    { id: "gid://shopify/Product/demo-3", title: "Seasonal Candle", price: "18.00", inventory: 7, status: "ACTIVE", image_count: 1, seo_title: "Seasonal Candle", seo_description: "A seasonal candle that benefits from promotion." },
+    { id: "gid://shopify/Product/demo-4", title: "Everyday Cap", price: "28.00", inventory: 54, status: "ACTIVE", image_count: 2, seo_title: "Everyday Cap", seo_description: "A core product with steady demand." },
+    { id: "gid://shopify/Product/demo-5", title: "Desk Organizer", price: "34.00", inventory: 4, status: "ACTIVE", image_count: 2, seo_title: "Desk Organizer", seo_description: "A low-stock product that needs attention." },
+    { id: "gid://shopify/Product/demo-6", title: "Gift Bundle", price: "58.00", inventory: 16, status: "ACTIVE", image_count: 3, seo_title: "Gift Bundle", seo_description: "A high-converting bundle-ready offer." },
+    { id: "gid://shopify/Product/demo-7", title: "Travel Pouch", price: "20.00", inventory: 12, status: "ACTIVE", image_count: 2, seo_title: "Travel Pouch", seo_description: "A compact accessory with promotion potential." },
+    { id: "gid://shopify/Product/demo-8", title: "Refill Pack", price: "14.00", inventory: 61, status: "ACTIVE", image_count: 1, seo_title: "Refill Pack", seo_description: "A recurring purchase item with repeat-buyer potential." }
+  ].freeze
+
+  def self.call(...)
+    new(...).call
+  end
+
+  def initialize(store:)
+    @store = store
+  end
+
+  def call
+    @base_time = Time.current.change(min: 0, sec: 0, usec: 0)
+    seed_products
+    seed_orders
+    seed_audits
+    seed_conversation
+    refresh_store_summary
+
+    puts "Seeded demo dashboard data for #{store.shopify_domain}"
+    puts "Products: #{store.product_snapshots.count}, Orders: #{store.order_snapshots.count}, Audit runs: #{store.audit_runs.count}, Actions: #{store.audit_actions.count}"
+  end
+
+  private
+
+  attr_reader :store
+
+  def seed_products
+    PRODUCT_DEFS.each_with_index do |definition, index|
+      snapshot = store.product_snapshots.find_or_initialize_by(shopify_product_id: definition.fetch(:id))
+      snapshot.assign_attributes(
+        title: definition.fetch(:title),
+        description: "Demo product #{index + 1} for merchant dashboard testing.",
+        price: definition.fetch(:price),
+        inventory_quantity: definition.fetch(:inventory),
+        status: definition.fetch(:status),
+        image_count: definition.fetch(:image_count),
+        image_alt_text_count: [ definition.fetch(:image_count) - 1, 0 ].max,
+        seo_title: definition.fetch(:seo_title),
+        seo_description: definition.fetch(:seo_description),
+        captured_at: base_time - index.days
+      )
+      snapshot.save!
+    end
+  end
+
+  def seed_orders
+    products = store.product_snapshots.order(captured_at: :desc, id: :desc).to_a.uniq(&:shopify_product_id)
+    currency = store.orders_currency.presence || store.currency.presence || "USD"
+    order_totals = []
+
+    12.times do |index|
+      chosen_products = products.values_at(index % products.size, (index + 2) % products.size).compact.uniq
+      captured_at = base_time - (index + 1).days
+      processed_at = captured_at.change(hour: 10, min: 30)
+
+      order = store.order_snapshots.find_or_initialize_by(shopify_order_id: "gid://shopify/Order/demo-#{index + 1}")
+      order.assign_attributes(
+        total_price: chosen_products.sum { |product| product.price.to_d },
+        currency: currency,
+        shopify_customer_id: "gid://shopify/Customer/demo-#{(index % 5) + 1}",
+        processed_at: processed_at,
+        captured_at: captured_at
+      )
+      order.save!
+      order.order_line_item_snapshots.delete_all
+
+      chosen_products.each_with_index do |product, item_index|
+        quantity = 1 + ((index + item_index) % 2)
+        order.order_line_item_snapshots.create!(
+          store:,
+          shopify_line_item_id: "gid://shopify/LineItem/demo-#{index + 1}-#{item_index + 1}",
+          shopify_product_id: product.shopify_product_id,
+          product_title: product.title,
+          quantity:,
+          unit_price: product.price,
+          refunded_quantity: 0,
+          refunded_amount: 0,
+          captured_at: processed_at
+        )
+      end
+
+      order_totals << order.total_price
+    end
+
+    store.update!(
+      orders_count: store.order_snapshots.count,
+      orders_total_price: order_totals.sum,
+      orders_currency: currency,
+      orders_synced_at: Time.current
+    )
+  end
+
+  def seed_audits
+    latest_run = store.audit_runs.find_or_initialize_by(started_at: base_time - 1.day + 9.hours)
+    latest_run.assign_attributes(
+      status: "completed",
+      completed_at: base_time - 1.day + 9.hours + 15.minutes,
+      rule_count: 4,
+      failed_rule_count: 0,
+      overall_score: 74,
+      previous_score_delta: 8,
+      category_scores: {
+        revenue: 70,
+        inventory: 78,
+        seo: 76,
+        product_quality: 72
+      }
+    )
+    latest_run.save!
+    upsert_audit_result(latest_run, "bundle_opportunity", "Bundle opportunities found", "revenue", "medium", "medium", "medium", 34, "Test a bundle offer.", "Highlight frequently purchased items together.")
+    upsert_audit_result(latest_run, "underperforming_product", "Underperforming stocked products found", "revenue", "medium", "medium", "medium", 30, "Review pricing.", "Promote or reposition low-performing products.")
+    upsert_audit_result(latest_run, "dead_stock", "Dead stock found", "inventory", "medium", "medium", "medium", 24, "Discount stale inventory.", "Create a clearance push before more stock ages out.")
+    upsert_audit_result(latest_run, "seo_gap", "Product SEO gaps found", "seo", "low", "medium", "medium", 16, "Add meta descriptions.", "Fill in missing metadata for the top products.")
+
+    earlier_run = store.audit_runs.find_or_initialize_by(started_at: base_time - 5.days + 9.hours)
+    earlier_run.assign_attributes(
+      status: "completed",
+      completed_at: base_time - 5.days + 9.hours + 12.minutes,
+      rule_count: 3,
+      failed_rule_count: 0,
+      overall_score: 66,
+      previous_score_delta: -4,
+      category_scores: {
+        revenue: 61,
+        inventory: 64,
+        seo: 68,
+        product_quality: 71
+      }
+    )
+    earlier_run.save!
+    upsert_audit_result(earlier_run, "top_customer_silence", "High-value customers have gone silent", "revenue", "high", "high", "high", 36, "Send win-back offer.", "Customers with the highest historical value have slowed down.")
+    upsert_audit_result(earlier_run, "bundle_opportunity", "Bundle opportunities found", "revenue", "medium", "medium", "medium", 28, "Test a bundle.", "The store can cross-sell products together.")
+    upsert_audit_result(earlier_run, "inventory_pressure", "Some products need reorder attention", "inventory", "low", "medium", "medium", 18, "Review low-stock items.", "A few products are close to running out.")
+  end
+
+  def upsert_audit_result(audit_run, rule_key, title, category, priority, impact, severity, score, recommendation, ai_recommendation)
+    result = audit_run.audit_results.find_or_initialize_by(rule_key:)
+    result.assign_attributes(
+      title:,
+      status: "warning",
+      severity:,
+      category:,
+      priority:,
+      impact:,
+      opportunity_score: score,
+      recommendation:,
+      ai_recommendation:,
+      details: demo_details(rule_key)
+    )
+    result.save!
+    upsert_audit_action(result)
+  end
+
+  def upsert_audit_action(result)
+    action = result.audit_action || result.build_audit_action(audit_run: result.audit_run)
+    action.assign_attributes(
+      title: result.title,
+      next_step: result.ai_recommendation.presence || result.recommendation.presence || result.description.presence || "Review this opportunity and choose the highest-impact next step.",
+      rationale: result.description.presence || "This action was created from the demo audit run.",
+      status: "open"
+    )
+    action.save!
+  end
+
+  def demo_details(rule_key)
+    case rule_key
+    when "bundle_opportunity"
+      {
+        bundle_pairs: [
+          {
+            "product_ids" => [
+              PRODUCT_DEFS[1].fetch(:id),
+              PRODUCT_DEFS[5].fetch(:id)
+            ],
+            "frequency" => 12
+          }
+        ]
+      }
+    when "underperforming_product"
+      {
+        underperforming_products: [
+          {
+            "shopify_product_id" => PRODUCT_DEFS[2].fetch(:id),
+            "units_sold" => 2
+          }
+        ]
+      }
+    when "dead_stock"
+      {
+        affected_product_ids: [ PRODUCT_DEFS[4].fetch(:id) ],
+        estimated_tied_up_value: "136.00"
+      }
+    when "seo_gap"
+      {
+        affected_product_ids: [ PRODUCT_DEFS[0].fetch(:id), PRODUCT_DEFS[3].fetch(:id) ]
+      }
+    when "top_customer_silence"
+      {
+        affected_customer_ids: [
+          "gid://shopify/Customer/demo-1",
+          "gid://shopify/Customer/demo-2"
+        ],
+        estimated_lost_revenue: "240.00",
+        customer_summaries: [
+          {
+            "shopify_customer_id" => "gid://shopify/Customer/demo-1",
+            "order_count" => 3,
+            "total_value" => "360.00",
+            "average_order_value" => "120.00",
+            "days_since_last_order" => 94
+          }
+        ]
+      }
+    else
+      {
+        issue_count: 1
+      }
+    end
+  end
+
+  def seed_conversation
+    conversation = store.ai_conversations.find_or_initialize_by(title: "What should I fix first?")
+    conversation.save!
+    return if conversation.ai_messages.exists?
+
+    conversation.ai_messages.create!(role: "user", content: "What should I fix first?")
+    conversation.ai_messages.create!(role: "assistant", content: "Start with the bundle opportunity, then review dead stock, then tune the underperforming products.")
+  end
+
+  def refresh_store_summary
+    store.update!(
+      name: store.name.presence || "North Pine",
+      products_count: store.product_snapshots.select(:shopify_product_id).distinct.count,
+      orders_count: store.order_snapshots.count,
+      orders_total_price: store.order_snapshots.sum(:total_price),
+      products_synced_at: Time.current,
+      orders_synced_at: Time.current
+    )
+  end
+
+  def base_time
+    @base_time || raise("base_time not initialized")
+  end
+end
+
+store_id = ENV["STORE_ID"].presence
+shopify_shop = ENV["SHOPIFY_SHOP"].presence
+
+store =
+  if store_id.present?
+    Store.find(store_id)
+  elsif shopify_shop.present?
+    Store.find_by!(shopify_domain: shopify_shop)
+  else
+    Store.where(active: true).order(:id).first || Store.order(:id).first
+  end
+
+abort "No store found to seed." if store.blank?
+
+DemoDashboardSeeder.call(store:)

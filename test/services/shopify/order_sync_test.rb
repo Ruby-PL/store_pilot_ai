@@ -64,6 +64,9 @@ module Shopify
             id: "gid://shopify/Order/line-items",
             amount: "42.50",
             customer_id: "gid://shopify/Customer/123",
+            refunds: [
+              refund_hash(line_item_id: "gid://shopify/LineItem/1", quantity: 1, amount: "12.50")
+            ],
             line_items: [
               line_item_hash(
                 id: "gid://shopify/LineItem/1",
@@ -95,6 +98,8 @@ module Shopify
       assert_equal "Canvas Tote", line_items.first.product_title
       assert_equal 2, line_items.first.quantity
       assert_equal BigDecimal("12.50"), line_items.first.unit_price
+      assert_equal 1, line_items.first.refunded_quantity
+      assert_equal BigDecimal("12.50"), line_items.first.refunded_amount
     end
 
     test "queries orders from the last 30 days" do
@@ -206,11 +211,12 @@ module Shopify
       }
     end
 
-    def order_hash(id:, amount:, processed_at: "2026-06-24T10:00:00Z", customer_id: nil, line_items: [])
+    def order_hash(id:, amount:, processed_at: "2026-06-24T10:00:00Z", customer_id: nil, refunds: [], line_items: [])
       {
         "id" => id,
         "processedAt" => processed_at,
         "customer" => customer_id && { "id" => customer_id },
+        "refunds" => refunds,
         "totalPriceSet" => {
           "shopMoney" => {
             "amount" => amount,
@@ -219,6 +225,26 @@ module Shopify
         },
         "lineItems" => {
           "nodes" => line_items
+        }
+      }
+    end
+
+    def refund_hash(line_item_id:, quantity:, amount:)
+      {
+        "refundLineItems" => {
+          "nodes" => [
+            {
+              "quantity" => quantity,
+              "lineItem" => {
+                "id" => line_item_id
+              },
+              "subtotalSet" => {
+                "shopMoney" => {
+                  "amount" => amount
+                }
+              }
+            }
+          ]
         }
       }
     end

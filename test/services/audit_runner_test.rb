@@ -59,6 +59,7 @@ class AuditRunnerTest < ActiveSupport::TestCase
     assert_equal 2, audit_run.rule_count
     assert_equal 0, audit_run.failed_rule_count
     assert_equal 3, audit_run.audit_results.count
+    assert_equal 2, audit_run.audit_actions.count
 
     result = audit_run.audit_results.find_by!(rule_key: "product_quality")
     assert_equal "warning", result.status
@@ -68,6 +69,8 @@ class AuditRunnerTest < ActiveSupport::TestCase
     assert_equal "medium", result.impact
     assert_equal 22, result.opportunity_score
     assert_equal [ "gid://shopify/Product/1" ], result.details.fetch("affected_product_ids")
+    assert_equal "Products need better descriptions", result.audit_action.title
+    assert_equal "Add more detail to the affected products.", result.audit_action.next_step
   end
 
   test "failed audit rule does not break the full audit run" do

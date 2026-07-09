@@ -29,7 +29,12 @@ class OrderLineItemSnapshotTest < ActiveSupport::TestCase
   end
 
   test "requires product and quantity fields" do
-    line_item = OrderLineItemSnapshot.new(quantity: 0, unit_price: -1)
+    line_item = OrderLineItemSnapshot.new(
+      quantity: 0,
+      unit_price: -1,
+      refunded_quantity: -1,
+      refunded_amount: -1
+    )
 
     assert_not line_item.valid?
     assert_includes line_item.errors[:order_snapshot], "must exist"
@@ -39,5 +44,7 @@ class OrderLineItemSnapshotTest < ActiveSupport::TestCase
     assert_includes line_item.errors[:product_title], "can't be blank"
     assert_includes line_item.errors[:quantity], "must be greater than 0"
     assert_includes line_item.errors[:unit_price], "must be greater than or equal to 0"
+    assert_includes line_item.errors[:refunded_quantity], "must be greater than or equal to 0"
+    assert_includes line_item.errors[:refunded_amount], "must be greater than or equal to 0"
   end
 end

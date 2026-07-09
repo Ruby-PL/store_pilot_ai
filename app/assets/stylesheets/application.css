@@ -40,6 +40,17 @@ h1 { margin-bottom:0; font:700 28px "Manrope",sans-serif; letter-spacing:0; }
 .primary-button { height:42px; padding:0 17px; color:#fff; background:var(--purple); border:0; border-radius:10px; font-weight:600; box-shadow:0 6px 14px #5548e52b; }
 .primary-button span { margin-right:7px; font-size:19px; font-weight:400; }
 .primary-button:disabled { cursor:not-allowed; opacity:.55; box-shadow:none; }
+.draft-button { height:34px; margin-top:10px; padding:0 12px; font-size:12px; box-shadow:none; }
+.email-draft { width:100%; margin-top:10px; padding:10px; color:#161625; background:#f7f7fa; border:1px solid var(--line); border-radius:8px; font:inherit; resize:vertical; }
+.ai-chat-panel { margin-bottom:18px; }
+.ai-chat-body { padding:0 22px 22px; }
+.ai-message-list { display:grid; gap:10px; margin-bottom:14px; }
+.ai-message { padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#f7f7fa; }
+.ai-message.user { background:#eeecff; border-color:#dedafe; }
+.ai-message strong { display:block; margin-bottom:4px; font-size:12px; }
+.ai-message p { margin:0; color:#5f5e6e; font-size:13px; line-height:1.45; }
+.ai-chat-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:start; }
+.ai-chat-form textarea { width:100%; padding:12px; color:#161625; background:#fff; border:1px solid var(--line); border-radius:10px; font:inherit; resize:vertical; }
 .flash-banner { margin-bottom:18px; padding:14px 18px; border:1px solid var(--line); border-radius:13px; background:#fff; }
 .flash-banner p { margin:0; font-size:13px; line-height:1.45; }
 .flash-banner.notice { border-color:#dfe3ff; background:#f4f5ff; color:#2d2a76; }
@@ -74,6 +85,13 @@ h1 { margin-bottom:0; font:700 28px "Manrope",sans-serif; letter-spacing:0; }
 .panel-heading { display:flex; align-items:center; justify-content:space-between; padding:20px 22px; }
 .panel-heading h2 { margin-bottom:4px; font:700 15px "Manrope",sans-serif; letter-spacing:0; }
 .panel-heading p { margin-bottom:0; color:var(--muted); font-size:11px; }
+.section-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.section-heading h2 { margin-bottom:4px; font:700 18px "Manrope",sans-serif; letter-spacing:0; }
+.section-heading p { margin-bottom:0; color:var(--muted); font-size:13px; line-height:1.45; }
+.audit-callout { display:flex; align-items:flex-start; gap:12px; margin-bottom:16px; padding:15px 18px; background:#f6f5ff; border:1px solid #e1ddff; border-radius:12px; }
+.audit-callout strong { display:block; margin-bottom:3px; font-size:12px; }
+.audit-callout p { margin-bottom:0; color:var(--muted); font-size:12px; line-height:1.45; }
+.opportunity-label { display:block; margin-bottom:2px; color:#7c7b89; font-size:10px; font-weight:700; }
 .select-button { padding:8px 10px; color:#5f5e6e; background:#fff; border:1px solid var(--line); border-radius:8px; font-size:11px; }
 .select-button span { margin-left:8px; }
 .chart-area { position:relative; height:250px; margin:0 22px 16px 52px; }
@@ -107,6 +125,6 @@ td strong { color:#343342; font-size:11px; }
 .align-right { text-align:right; }
 .order-status { display:inline-block; padding:4px 8px; border-radius:99px; font-size:9px; font-weight:600; }
 .order-status.paid { color:#16835b; background:#e8f6ef; }.order-status.pending { color:#bd742b; background:#fff2df; }
-@media (max-width:1050px) { .metrics-grid { grid-template-columns:repeat(2,1fr); }.dashboard-grid { grid-template-columns:1fr; } }
-@media (max-width:720px) { .sidebar { position:static; width:100%; height:auto; padding:14px 18px; flex-direction:row; align-items:center; }.brand { padding:0; }.brand span:last-child { display:none; }.nav-list { margin-left:auto; display:flex; }.nav-link { min-height:40px; padding:0 11px; }.nav-link:not(.active),.sidebar-bottom { display:none; }.nav-link.active { font-size:0; gap:0; }.main-content { margin-left:0; padding:25px 18px 40px; }.topbar { align-items:flex-end; }.top-actions { flex-wrap:wrap; justify-content:flex-end; }.eyebrow { display:none; }h1 { font-size:23px; }.icon-button { display:none; }.ai-brief { align-items:flex-start; padding:21px; }.brief-link { display:none; }.metrics-grid { grid-template-columns:1fr 1fr; }.metric-card { padding:16px; }.metric-card > strong { font-size:20px; }.chart-area { height:220px; }.orders-panel { margin-bottom:30px; } }
-@media (max-width:460px) { .primary-button { height:40px; padding:0 14px; font-size:12px; }.primary-button span { margin-right:6px; font-size:18px; }.metrics-grid { grid-template-columns:1fr; }.ai-icon { display:none; }.brief-copy p { line-height:1.5; }.main-content { padding-inline:14px; }.panel-heading { padding:18px; } }
+@media (max-width:1050px) { .metrics-grid { grid-template-columns:repeat(2,1fr); }.dashboard-grid { grid-template-columns:1fr; }.section-heading { flex-direction:column; } }
+@media (max-width:720px) { .sidebar { position:static; width:100%; height:auto; padding:14px 18px; flex-direction:row; align-items:center; }.brand { padding:0; }.brand span:last-child { display:none; }.nav-list { margin-left:auto; display:flex; }.nav-link { min-height:40px; padding:0 11px; }.nav-link:not(.active),.sidebar-bottom { display:none; }.nav-link.active { font-size:0; gap:0; }.main-content { margin-left:0; padding:25px 18px 40px; }.topbar { align-items:flex-end; }.top-actions { flex-wrap:wrap; justify-content:flex-end; }.eyebrow { display:none; }h1 { font-size:23px; }.icon-button { display:none; }.ai-brief { align-items:flex-start; padding:21px; }.brief-link { display:none; }.metrics-grid { grid-template-columns:1fr 1fr; }.metric-card { padding:16px; }.metric-card > strong { font-size:20px; }.chart-area { height:220px; }.orders-panel { margin-bottom:30px; }.section-heading h2 { font-size:17px; } }
+@media (max-width:460px) { .primary-button { height:40px; padding:0 14px; font-size:12px; }.primary-button span { margin-right:6px; font-size:18px; }.metrics-grid { grid-template-columns:1fr; }.ai-icon { display:none; }.brief-copy p { line-height:1.5; }.main-content { padding-inline:14px; }.panel-heading { padding:18px; }.audit-callout { padding:14px; } }

@@ -46,6 +46,36 @@ class StoreTest < ActiveSupport::TestCase
     assert_predicate store, :valid?
   end
 
+  test "tracks monthly AI usage by plan" do
+    store = @user.stores.create!(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      ai_plan: "pro",
+      ai_requests_count: 2,
+      ai_requests_counted_on: Time.current.beginning_of_month.to_date
+    )
+
+    assert_equal "pro", store.ai_plan
+    assert_equal 250, store.ai_request_limit
+    assert_equal "2/250", store.ai_usage_summary
+    assert store.consume_ai_request!
+    assert_equal 3, store.reload.ai_requests_count
+  end
+
+  test "resets the monthly counter when the period changes" do
+    store = @user.stores.create!(
+      shopify_domain: "north-pine.myshopify.com",
+      access_token: "shpat_secret",
+      ai_requests_count: 25,
+      ai_requests_counted_on: 1.month.ago.to_date
+    )
+
+    assert_equal "0/25", store.ai_usage_summary
+    assert store.consume_ai_request!
+    assert_equal 1, store.reload.ai_requests_count
+    assert_equal Time.current.beginning_of_month.to_date, store.ai_requests_counted_on
+  end
+
   test "mark uninstalled deactivates store and clears access token" do
     store = @user.stores.create!(shopify_domain: "north-pine.myshopify.com", access_token: "shpat_secret")
     uninstalled_at = Time.zone.local(2026, 6, 24, 9, 15)

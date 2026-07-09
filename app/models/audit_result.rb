@@ -6,6 +6,7 @@ class AuditResult < ApplicationRecord
   CATEGORIES = %w[revenue seo inventory product_quality operations].freeze
 
   belongs_to :audit_run
+  has_one :audit_action, dependent: :destroy
 
   validates :rule_key, :title, presence: true
   validates :status, inclusion: { in: STATUSES }

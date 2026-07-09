@@ -9,8 +9,16 @@ class DashboardController < ApplicationController
     @latest_audit_run = @audit_runs.first
     @selected_audit_run = selected_audit_run(@audit_runs)
     @opportunities = opportunity_results(@selected_audit_run)
+    @revenue_opportunities = @opportunities.select { |result| result.category == "revenue" }
     @opportunities_by_priority = @opportunities.group_by(&:priority)
     @category_scores = @selected_audit_run&.category_scores || {}
+    @store_product_titles = store_product_titles(@store)
+    @audit_actions = audit_actions(@selected_audit_run)
+    @open_audit_actions = @audit_actions.reject { |action| action.status == "completed" }
+    @ai_conversations = ai_conversations(@store)
+    @ai_conversation = selected_ai_conversation(@ai_conversations)
+    @ai_messages = @ai_conversation&.ai_messages&.order(:created_at) || []
+    @store_overview_rows = store_overview_rows(@store)
   end
 
   def sync
@@ -22,6 +30,39 @@ class DashboardController < ApplicationController
     Shopify::OrderSyncJob.perform_later(@store)
 
     redirect_to dashboard_path, notice: "Sync queued for #{@store.shopify_domain}."
+  end
+
+  def generate_win_back_email_draft
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    result = @store.audit_results.find(params[:id])
+    Ai::WinBackEmailDraftGenerator.call(result)
+
+    redirect_to dashboard_path(audit_run_id: result.audit_run_id, anchor: "opportunities"), notice: "Win-back email draft generated."
+  end
+
+  def create_ai_chat_message
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    question = params[:question].to_s.squish
+    return redirect_to dashboard_path(anchor: "ai-store-manager"), alert: "Ask a question before sending." if question.blank?
+
+    conversation = selected_ai_conversation(@store.ai_conversations.latest_first) || @store.ai_conversations.create!(title: question.truncate(80))
+    Ai::StoreManagerService.call(store: @store, question:, conversation:)
+
+    redirect_to dashboard_path(ai_conversation_id: conversation.id, anchor: "ai-store-manager"), notice: "Question saved."
+  end
+
+  def complete_audit_action
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    action = @store.audit_actions.find(params[:id])
+    action.complete!
+
+    redirect_to dashboard_path(audit_run_id: action.audit_run_id, anchor: "action-center"), notice: "Action marked complete."
   end
 
   private
@@ -91,5 +132,50 @@ class DashboardController < ApplicationController
     return audit_runs.first if params[:audit_run_id].blank?
 
     audit_runs.detect { |audit_run| audit_run.id == params[:audit_run_id].to_i } || audit_runs.first
+  end
+
+  def ai_conversations(store)
+    return AiConversation.none if store.blank?
+
+    store.ai_conversations.latest_first.includes(:ai_messages).limit(5)
+  end
+
+  def selected_ai_conversation(conversations)
+    return if conversations.blank?
+
+    conversations.detect { |conversation| conversation.id == params[:ai_conversation_id].to_i } || conversations.first
+  end
+
+  def store_overview_rows(store)
+    return [] if store.blank?
+
+    [
+      {
+        title: "What StorePilot AI does",
+        body: "It turns synced Shopify data into plain-English guidance so merchants know what to fix first, what to promote, and what to reorder."
+      },
+      {
+        title: "What it looks at",
+        body: "Products, orders, inventory, audits, and conversation history for this store. It keeps customer data minimal and uses the latest sync results."
+      },
+      {
+        title: "What it helps solve",
+        body: "Sales drops, low-performing products, bundle opportunities, dead stock, reorder decisions, and recurring issues that need merchant review."
+      }
+    ]
+  end
+
+  def store_product_titles(store)
+    return {} if store.blank?
+
+    store.product_snapshots.order(captured_at: :desc, id: :desc).to_a.uniq(&:shopify_product_id).each_with_object({}) do |snapshot, titles|
+      titles[snapshot.shopify_product_id] = snapshot.title
+    end
+  end
+
+  def audit_actions(audit_run)
+    return AuditAction.none if audit_run.blank?
+
+    audit_run.audit_actions.includes(:audit_result).open_first
   end
 end

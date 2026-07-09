@@ -10,9 +10,45 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_103000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "ai_conversations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "store_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["store_id", "updated_at"], name: "index_ai_conversations_on_store_id_and_updated_at"
+    t.index ["store_id"], name: "index_ai_conversations_on_store_id"
+  end
+
+  create_table "ai_messages", force: :cascade do |t|
+    t.bigint "ai_conversation_id", null: false
+    t.integer "completion_tokens", default: 0, null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.integer "prompt_tokens", default: 0, null: false
+    t.string "role", null: false
+    t.integer "total_tokens", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_conversation_id"], name: "index_ai_messages_on_ai_conversation_id"
+  end
+
+  create_table "audit_actions", force: :cascade do |t|
+    t.bigint "audit_result_id", null: false
+    t.bigint "audit_run_id", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.text "next_step", null: false
+    t.text "rationale"
+    t.string "status", default: "open", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["audit_result_id"], name: "index_audit_actions_on_audit_result_id", unique: true
+    t.index ["audit_run_id", "status"], name: "index_audit_actions_on_audit_run_id_and_status"
+    t.index ["audit_run_id"], name: "index_audit_actions_on_audit_run_id"
+  end
 
   create_table "audit_results", force: :cascade do |t|
     t.integer "ai_completion_tokens", default: 0, null: false
@@ -36,6 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
     t.string "status", default: "passed", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.text "win_back_email_draft"
     t.index ["audit_run_id", "rule_key"], name: "index_audit_results_on_audit_run_id_and_rule_key"
     t.index ["audit_run_id"], name: "index_audit_results_on_audit_run_id"
     t.index ["category"], name: "index_audit_results_on_category"
@@ -68,6 +105,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
     t.bigint "order_snapshot_id", null: false
     t.string "product_title", null: false
     t.integer "quantity", default: 1, null: false
+    t.decimal "refunded_amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.integer "refunded_quantity", default: 0, null: false
     t.string "shopify_line_item_id", null: false
     t.string "shopify_product_id", null: false
     t.bigint "store_id", null: false
@@ -116,6 +155,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
   create_table "stores", force: :cascade do |t|
     t.text "access_token"
     t.boolean "active", default: true, null: false
+    t.string "ai_plan", default: "free", null: false
+    t.integer "ai_requests_count", default: 0, null: false
+    t.date "ai_requests_counted_on"
     t.datetime "created_at", null: false
     t.string "currency"
     t.string "name"
@@ -142,6 +184,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_122000) do
     t.index "lower((email)::text)", name: "index_users_on_lower_email", unique: true
   end
 
+  add_foreign_key "ai_conversations", "stores"
+  add_foreign_key "ai_messages", "ai_conversations"
+  add_foreign_key "audit_actions", "audit_results"
+  add_foreign_key "audit_actions", "audit_runs"
   add_foreign_key "audit_results", "audit_runs"
   add_foreign_key "audit_runs", "stores"
   add_foreign_key "order_line_item_snapshots", "order_snapshots"

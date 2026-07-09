@@ -47,8 +47,32 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_stat_card "Average order value", "USD 30.00"
     assert_select "section[aria-label='Empty dashboard state']", 0
     assert_select "dd", "north-pine.myshopify.com"
+    assert_select "dd", "0/25"
+    assert_select "dd", "Free"
     assert_select "dd", "Connected"
     assert_select ".sync-form .sync-button", /Run sync/
+  end
+
+  test "renders a merchant overview section that explains what the app helps with" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com",
+      products_count: 12,
+      orders_count: 4,
+      orders_total_price: 120,
+      orders_currency: "USD",
+      products_synced_at: 2.hours.ago,
+      orders_synced_at: 1.hour.ago
+    )
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select "section[aria-label='Store overview'] h2", "What StorePilot AI helps merchants do"
+    assert_select "section[aria-label='Store overview'] strong", text: /What StorePilot AI does/
+    assert_select "section[aria-label='Store overview'] p", text: /turns synced Shopify data into plain-English guidance/
+    assert_select "section[aria-label='Store overview'] p", text: /Sales drops, low-performing products, bundle opportunities/
   end
 
   test "renders dashboard path used after OAuth redirect" do
@@ -63,6 +87,68 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", "North Pine"
     assert_select ".status-pill", "Connected"
+  end
+
+  test "renders AI Store Manager chat interface and previous messages" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    conversation = store.ai_conversations.create!(title: "What should I fix first?")
+    conversation.ai_messages.create!(role: "user", content: "What should I fix first?")
+    conversation.ai_messages.create!(role: "assistant", content: "Start with high priority revenue opportunities.")
+    sign_in_as(store)
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "section[aria-label='AI Store Manager'] textarea[aria-label='Ask AI Store Manager']"
+    assert_select ".ai-message.user p", "What should I fix first?"
+    assert_select ".ai-message.assistant p", "Start with high priority revenue opportunities."
+    assert_select ".attention-item strong", "What should I fix first?"
+  end
+
+  test "reopens an older AI conversation from the dashboard" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    latest_conversation = store.ai_conversations.create!(title: "Latest question")
+    latest_conversation.ai_messages.create!(role: "user", content: "Latest question")
+    latest_conversation.ai_messages.create!(role: "assistant", content: "Latest answer.")
+    older_conversation = store.ai_conversations.create!(title: "What should I fix first?")
+    older_conversation.ai_messages.create!(role: "user", content: "What should I fix first?")
+    older_conversation.ai_messages.create!(role: "assistant", content: "Start with high priority revenue opportunities.")
+    sign_in_as(store)
+
+    get dashboard_path(ai_conversation_id: older_conversation.id)
+
+    assert_response :success
+    assert_select ".ai-chat-panel small", text: /Conversation: What should I fix first\?/
+    assert_select ".ai-message.user p", "What should I fix first?"
+    assert_select ".ai-message.assistant p", "Start with high priority revenue opportunities."
+    assert_select ".attention-item", text: /Latest question/
+    assert_select ".attention-item", text: /What should I fix first\?/
+  end
+
+  test "stores submitted AI chat question and assistant placeholder" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    conversation = store.ai_conversations.create!(title: "Existing conversation")
+    sign_in_as(store)
+
+    post dashboard_ai_chat_path, params: { question: "Why are sales down?", ai_conversation_id: conversation.id }
+
+    assert_redirected_to dashboard_path(ai_conversation_id: conversation.id, anchor: "ai-store-manager")
+    assert_equal "Existing conversation", conversation.reload.title
+    assert_equal [ "user", "assistant" ], conversation.ai_messages.order(:created_at).pluck(:role)
+    assert_equal "Why are sales down?", conversation.ai_messages.order(:created_at).first.content
+    assert_match(/not enough recent sales data/i, conversation.ai_messages.order(:created_at).second.content)
+    assert_equal 1, store.ai_conversations.count
+  end
+
+  test "shows friendly error for blank AI chat question" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+
+    post dashboard_ai_chat_path, params: { question: " " }
+
+    assert_redirected_to dashboard_path(anchor: "ai-store-manager")
+    assert_equal "Ask a question before sending.", flash[:alert]
+    assert_equal 0, store.ai_conversations.count
   end
 
   test "renders opportunity dashboard from latest audit run" do
@@ -105,7 +191,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".metric-card", text: /Opportunities found.*1/m
     assert_select ".opportunity-group h3", "High priority"
     assert_select ".opportunity-item strong", "Product SEO gaps found"
-    assert_select ".opportunity-item p", "Add unique meta descriptions to your top products."
+    assert_select ".opportunity-item p", text: /Add unique meta descriptions to your top products\./
     assert_select ".opportunity-item small", /gid:\/\/shopify\/Product\/1/
   end
 
@@ -140,6 +226,155 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "small", text: "Repeat buyer trend: -25%"
+  end
+
+  test "renders dedicated revenue opportunity section" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    store.product_snapshots.create!(
+      shopify_product_id: "gid://shopify/Product/A",
+      title: "Starter Tote",
+      price: 24.50,
+      inventory_quantity: 8,
+      image_count: 1,
+      image_alt_text_count: 1,
+      captured_at: Time.current
+    )
+    store.product_snapshots.create!(
+      shopify_product_id: "gid://shopify/Product/B",
+      title: "Gift Bundle",
+      price: 39.00,
+      inventory_quantity: 4,
+      image_count: 1,
+      image_alt_text_count: 1,
+      captured_at: Time.current
+    )
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(
+      status: "completed",
+      started_at: Time.current,
+      completed_at: Time.current,
+      rule_count: 4,
+      overall_score: 70
+    )
+    [
+      [
+        "bundle_opportunity",
+        "Bundle opportunities found",
+        "Test a bundle offer.",
+        {
+          affected_product_ids: [ "gid://shopify/Product/A" ],
+          bundle_pairs: [
+            {
+              product_ids: [ "gid://shopify/Product/A", "gid://shopify/Product/B" ],
+              frequency: 12
+            }
+          ]
+        }
+      ],
+      [ "dead_stock", "Dead stock found", "Discount stale inventory.", { affected_product_ids: [ "gid://shopify/Product/B" ] } ],
+      [ "top_customer_silence", "High-value customers have gone silent", "Send win-back offer.", { affected_customer_ids: [ "gid://shopify/Customer/A" ] } ],
+      [ "underperforming_product", "Underperforming stocked products found", "Improve content or bundle placement.", { affected_product_ids: [ "gid://shopify/Product/C" ] } ]
+    ].each do |rule_key, title, recommendation, details|
+      audit_run.audit_results.create!(
+        rule_key:,
+        title:,
+        status: "warning",
+        severity: "medium",
+        category: "revenue",
+        priority: "medium",
+        impact: "medium",
+        recommendation:,
+        details:
+      )
+    end
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "section[aria-label='Opportunity dashboard'] h2", "Store health opportunities"
+    assert_select ".audit-callout strong", "Opportunities and next steps"
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-item", 4
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Bundle opportunities found"
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Dead stock found"
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "High-value customers have gone silent"
+    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Underperforming stocked products found"
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-item p", text: /Test a bundle offer\./
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-label", text: "What this means"
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-label", text: "What to do"
+    assert_select "section[aria-label='Revenue opportunities'] small", text: /Starter Tote \+ Gift Bundle \(12 orders\)/
+    assert_select "section[aria-label='Revenue opportunities'] small", text: /Why this can work: Starter Tote \+ Gift Bundle already appear together in 12 orders/
+    assert_select "section[aria-label='Revenue opportunities'] small", text: /gid:\/\/shopify\/Customer\/A/
+  end
+
+  test "renders action center and lets the merchant complete an action" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+
+    rule = Struct.new(:key) do
+      def call(store:, audit_run:)
+        {
+          title: "SEO issue found",
+          status: "warning",
+          severity: "medium",
+          category: "seo",
+          priority: "medium",
+          impact: "medium",
+          description: "Some products need clearer metadata.",
+          recommendation: "Add meta descriptions to the top products.",
+          details: {
+            affected_product_ids: [ "gid://shopify/Product/1" ],
+            store_id: store.id,
+            audit_run_id: audit_run.id
+          }
+        }
+      end
+    end
+
+    audit_run = AuditRunner.call(store, rules: [ rule.new("seo_gap") ])
+    action = audit_run.audit_actions.sole
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "section[aria-label='Action center'] h3", "Action center"
+    assert_select "section[aria-label='Action center'] .opportunity-item strong", "SEO issue found"
+    assert_select "section[aria-label='Action center'] button", "Mark done"
+
+    post complete_dashboard_audit_action_path(action)
+
+    assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "action-center")
+    assert_equal "completed", action.reload.status
+  end
+
+  test "generates and renders win-back email draft" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(status: "completed", started_at: Time.current, completed_at: Time.current)
+    result = audit_run.audit_results.create!(
+      rule_key: "top_customer_silence",
+      title: "High-value customers have gone silent",
+      status: "warning",
+      severity: "high",
+      category: "revenue",
+      priority: "high",
+      impact: "high",
+      recommendation: "Send a win-back offer.",
+      details: {
+        estimated_lost_revenue: "150.00",
+        affected_customer_ids: [ "gid://shopify/Customer/A" ]
+      }
+    )
+
+    post dashboard_win_back_email_draft_path(result)
+
+    assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "opportunities")
+    assert_includes result.reload.win_back_email_draft, "{{ customer_first_name }}"
+
+    follow_redirect!
+
+    assert_response :success
+    assert_select "textarea.email-draft[readonly]", /customer_first_name/
+    assert_select "textarea.email-draft", /win_back_offer/
   end
 
   test "renders opportunity empty state when no audit exists" do
