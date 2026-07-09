@@ -91,6 +91,30 @@ class AuditRunner
       opportunity_score: score.opportunity_score
     )
     audit_result.save!
+    persist_action(audit_result)
+  end
+
+  def persist_action(audit_result)
+    return unless audit_result.status == "warning"
+
+    audit_result.create_audit_action!(
+      audit_run: audit_result.audit_run,
+      title: audit_result.title,
+      next_step: action_next_step_for(audit_result),
+      rationale: action_rationale_for(audit_result),
+      status: "open"
+    )
+  end
+
+  def action_next_step_for(audit_result)
+    audit_result.ai_recommendation.presence ||
+      audit_result.recommendation.presence ||
+      audit_result.description.presence ||
+      "Review this opportunity and choose the highest-impact next step."
+  end
+
+  def action_rationale_for(audit_result)
+    audit_result.description.presence || "This action was created from the latest audit run."
   end
 
   def persist_rule_failure(audit_run, rule, exception)

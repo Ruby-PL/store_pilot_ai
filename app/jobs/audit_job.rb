@@ -4,7 +4,9 @@ class AuditJob < ApplicationJob
   DEFAULT_RULES = [
     Audits::ProductQualityRule,
     Audits::SeoGapRule,
+    Audits::InventoryRiskRule,
     Audits::DeadStockRule,
+    Audits::ReviewGapRule,
     Audits::BundleOpportunityRule,
     Audits::UnderperformingProductRule,
     Audits::TopCustomerSilenceRule,
@@ -14,7 +16,8 @@ class AuditJob < ApplicationJob
   ].freeze
 
   def perform(store)
-    AuditRunner.call(store, rules: DEFAULT_RULES.map(&:new))
+    audit_run = AuditRunner.call(store, rules: DEFAULT_RULES.map(&:new))
+    Ai::RecommendationGenerator.call(audit_run)
   rescue StandardError => exception
     ErrorMonitoring.capture_exception(exception, context: { store_id: store.id, source: "audit_job" })
     Rails.logger.error("Audit job failed for store_id=#{store.id}: #{exception.message}")

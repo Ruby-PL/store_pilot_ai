@@ -9,76 +9,81 @@ module Audits
       @rule = DeadStockRule.new
     end
 
-    test "returns nil when stocked products have sales" do
-      create_product("A", inventory_quantity: 5)
-      create_order_line_item("A")
+    test "returns nil when there are no synced products" do
+      assert_nil @rule.call(store: @store, audit_run: @audit_run)
+    end
+
+    test "returns nil when products are recent" do
+      create_product!(shopify_product_id: "gid://shopify/Product/recent", captured_at: 10.days.ago)
 
       assert_nil @rule.call(store: @store, audit_run: @audit_run)
     end
 
-    test "detects stocked products without synced sales" do
-      create_product("A", title: "Slow Tote", inventory_quantity: 8, price: "15")
-      create_product("B", inventory_quantity: 2, price: "20")
-      create_product("C", inventory_quantity: 5, price: "25")
-      create_order_line_item("C")
+    test "detects products with no sales signal for 90 and 180 days" do
+      create_product!(
+        shopify_product_id: "gid://shopify/Product/stale",
+        title: "Stale Hoodie",
+        price: BigDecimal("25"),
+        inventory_quantity: 4,
+        captured_at: 100.days.ago
+      )
+      create_product!(
+        shopify_product_id: "gid://shopify/Product/critical",
+        title: "Old Backpack",
+        price: BigDecimal("50"),
+        inventory_quantity: 3,
+        captured_at: 190.days.ago
+      )
 
       result = @rule.call(store: @store, audit_run: @audit_run)
 
       assert_equal "dead_stock", result.rule_key
       assert_equal "warning", result.status
-      assert_equal "medium", result.severity
+      assert_equal "high", result.severity
       assert_equal "revenue", result.category
-      assert_equal "Dead stock found", result.title
-      assert_includes result.recommendation, "discounting"
-      assert_equal 1, result.details.fetch(:issue_count)
-      assert_equal [ "gid://shopify/Product/A" ], result.details.fetch(:affected_product_ids)
-      assert_equal "120.0", result.details.fetch(:estimated_tied_up_value)
-
-      product = result.details.fetch(:dead_stock_products).sole
-      assert_equal "Slow Tote", product.fetch(:title)
-      assert_equal 8, product.fetch(:inventory_quantity)
+      assert_equal "Dead stock opportunities found", result.title
+      assert_includes result.description, "$250.00"
+      assert_includes result.recommendation, "clearance discount"
+      assert_equal 2, result.details.fetch(:issue_count)
+      assert_equal 2, result.details.fetch(:no_sales_90_day_count)
+      assert_equal 1, result.details.fetch(:no_sales_180_day_count)
+      assert_equal "250.0", result.details.fetch(:estimated_tied_up_value)
+      assert_equal 2, result.details.fetch(:affected_products).size
+      assert_equal [ "gid://shopify/Product/stale", "gid://shopify/Product/critical" ], result.details.fetch(:affected_product_ids)
     end
 
-    test "persists dead stock through audit runner" do
-      create_product("A", inventory_quantity: 8, price: "15")
+    test "ignores out of stock products" do
+      create_product!(
+        shopify_product_id: "gid://shopify/Product/out",
+        inventory_quantity: 0,
+        captured_at: 190.days.ago
+      )
+
+      assert_nil @rule.call(store: @store, audit_run: @audit_run)
+    end
+
+    test "persists dead stock audit result through audit runner" do
+      create_product!(shopify_product_id: "gid://shopify/Product/stale", captured_at: 100.days.ago)
 
       audit_run = AuditRunner.call(@store, rules: [ @rule ])
       result = audit_run.audit_results.sole
 
       assert_equal "completed", audit_run.status
       assert_equal "dead_stock", result.rule_key
-      assert_equal "medium", result.priority
-      assert_equal "revenue", result.category
+      assert_equal [ "gid://shopify/Product/stale" ], result.details.fetch("affected_product_ids")
     end
 
     private
 
-    def create_product(product, title: "Product #{product}", inventory_quantity:, price: "10")
+    def create_product!(captured_at: Time.current, **attributes)
       @store.product_snapshots.create!(
-        shopify_product_id: "gid://shopify/Product/#{product}",
-        title:,
-        inventory_quantity:,
-        price: BigDecimal(price),
-        status: "ACTIVE",
-        captured_at: Time.current
-      )
-    end
-
-    def create_order_line_item(product)
-      order = @store.order_snapshots.create!(
-        shopify_order_id: "gid://shopify/Order/#{SecureRandom.hex(4)}",
-        currency: "EUR",
-        processed_at: Time.current,
-        captured_at: Time.current
-      )
-      order.order_line_item_snapshots.create!(
-        store: @store,
-        shopify_line_item_id: "gid://shopify/LineItem/#{SecureRandom.hex(4)}",
-        shopify_product_id: "gid://shopify/Product/#{product}",
-        product_title: "Product #{product}",
-        quantity: 1,
-        unit_price: BigDecimal("10"),
-        captured_at: Time.current
+        {
+          title: "Everyday Canvas Tote",
+          price: BigDecimal("10"),
+          inventory_quantity: 1,
+          status: "ACTIVE",
+          captured_at:
+        }.merge(attributes)
       )
     end
   end

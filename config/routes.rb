@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   get "dashboard", to: "dashboard#show", as: :dashboard
   post "dashboard/sync", to: "dashboard#sync", as: :dashboard_sync
   post "dashboard/ai_chat", to: "dashboard#create_ai_chat_message", as: :dashboard_ai_chat
+  post "dashboard/audit_actions/:id/complete", to: "dashboard#complete_audit_action", as: :complete_dashboard_audit_action
   post "dashboard/audit_results/:id/win_back_email_draft", to: "dashboard#generate_win_back_email_draft", as: :dashboard_win_back_email_draft
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html

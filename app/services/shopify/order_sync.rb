@@ -21,17 +21,15 @@ module Shopify
               id
             }
             refunds(first: 20) {
-              nodes {
-                refundLineItems(first: 50) {
-                  nodes {
-                    quantity
-                    lineItem {
-                      id
-                    }
-                    subtotalSet {
-                      shopMoney {
-                        amount
-                      }
+              refundLineItems(first: 50) {
+                nodes {
+                  quantity
+                  lineItem {
+                    id
+                  }
+                  subtotalSet {
+                    shopMoney {
+                      amount
                     }
                   }
                 }
@@ -175,8 +173,9 @@ module Shopify
     end
 
     def refunds_by_line_item(order)
-      order.fetch("refunds", {}).fetch("nodes", []).each_with_object({}) do |refund, refunds|
-        refund.fetch("refundLineItems", {}).fetch("nodes", []).each do |refund_line_item|
+      Array(order["refunds"]).each_with_object({}) do |refund, refunds|
+        refund_line_items = refund.fetch("refundLineItems", {})
+        Array(refund_line_items.is_a?(Hash) ? refund_line_items.fetch("nodes", []) : refund_line_items).each do |refund_line_item|
           line_item_id = refund_line_item.dig("lineItem", "id")
           next if line_item_id.blank?
 

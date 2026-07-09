@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_08_144000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_103000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,6 +33,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_144000) do
     t.integer "total_tokens", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["ai_conversation_id"], name: "index_ai_messages_on_ai_conversation_id"
+  end
+
+  create_table "audit_actions", force: :cascade do |t|
+    t.bigint "audit_result_id", null: false
+    t.bigint "audit_run_id", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.text "next_step", null: false
+    t.text "rationale"
+    t.string "status", default: "open", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["audit_result_id"], name: "index_audit_actions_on_audit_result_id", unique: true
+    t.index ["audit_run_id", "status"], name: "index_audit_actions_on_audit_run_id_and_status"
+    t.index ["audit_run_id"], name: "index_audit_actions_on_audit_run_id"
   end
 
   create_table "audit_results", force: :cascade do |t|
@@ -171,6 +186,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_144000) do
 
   add_foreign_key "ai_conversations", "stores"
   add_foreign_key "ai_messages", "ai_conversations"
+  add_foreign_key "audit_actions", "audit_results"
+  add_foreign_key "audit_actions", "audit_runs"
   add_foreign_key "audit_results", "audit_runs"
   add_foreign_key "audit_runs", "stores"
   add_foreign_key "order_line_item_snapshots", "order_snapshots"

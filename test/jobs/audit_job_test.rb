@@ -22,7 +22,9 @@ class AuditJobTest < ActiveJob::TestCase
       [
         Audits::ProductQualityRule,
         Audits::SeoGapRule,
+        Audits::InventoryRiskRule,
         Audits::DeadStockRule,
+        Audits::ReviewGapRule,
         Audits::BundleOpportunityRule,
         Audits::UnderperformingProductRule,
         Audits::TopCustomerSilenceRule,
@@ -32,6 +34,19 @@ class AuditJobTest < ActiveJob::TestCase
       ],
       called_rules.map(&:class)
     )
+  end
+
+  test "generates ai recommendations after the audit completes" do
+    audit_run = AuditRun.new(id: 123)
+    called_audit_run = nil
+
+    with_audit_runner(->(_store, rules:) { audit_run }) do
+      with_ai_recommendation_generator(->(passed_audit_run) { called_audit_run = passed_audit_run }) do
+        AuditJob.perform_now(@store)
+      end
+    end
+
+    assert_equal audit_run, called_audit_run
   end
 
   test "captures errors without raising" do
@@ -54,6 +69,15 @@ class AuditJobTest < ActiveJob::TestCase
     yield
   ensure
     AuditRunner.define_singleton_method(:call, original_method)
+  end
+
+  def with_ai_recommendation_generator(handler)
+    original_method = Ai::RecommendationGenerator.method(:call)
+    Ai::RecommendationGenerator.define_singleton_method(:call, &handler)
+
+    yield
+  ensure
+    Ai::RecommendationGenerator.define_singleton_method(:call, original_method)
   end
 
   def capture_logs

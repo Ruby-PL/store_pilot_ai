@@ -53,6 +53,28 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".sync-form .sync-button", /Run sync/
   end
 
+  test "renders a merchant overview section that explains what the app helps with" do
+    store = create_store(
+      name: "North Pine",
+      shopify_domain: "north-pine.myshopify.com",
+      products_count: 12,
+      orders_count: 4,
+      orders_total_price: 120,
+      orders_currency: "USD",
+      products_synced_at: 2.hours.ago,
+      orders_synced_at: 1.hour.ago
+    )
+    sign_in_as(store)
+
+    get root_url
+
+    assert_response :success
+    assert_select "section[aria-label='Store overview'] h2", "What StorePilot AI helps merchants do"
+    assert_select "section[aria-label='Store overview'] strong", text: /What StorePilot AI does/
+    assert_select "section[aria-label='Store overview'] p", text: /turns synced Shopify data into plain-English guidance/
+    assert_select "section[aria-label='Store overview'] p", text: /Sales drops, low-performing products, bundle opportunities/
+  end
+
   test "renders dashboard path used after OAuth redirect" do
     store = create_store(
       name: "North Pine",
@@ -169,7 +191,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select ".metric-card", text: /Opportunities found.*1/m
     assert_select ".opportunity-group h3", "High priority"
     assert_select ".opportunity-item strong", "Product SEO gaps found"
-    assert_select ".opportunity-item p", "Add unique meta descriptions to your top products."
+    assert_select ".opportunity-item p", text: /Add unique meta descriptions to your top products\./
     assert_select ".opportunity-item small", /gid:\/\/shopify\/Product\/1/
   end
 
@@ -208,6 +230,24 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "renders dedicated revenue opportunity section" do
     store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    store.product_snapshots.create!(
+      shopify_product_id: "gid://shopify/Product/A",
+      title: "Starter Tote",
+      price: 24.50,
+      inventory_quantity: 8,
+      image_count: 1,
+      image_alt_text_count: 1,
+      captured_at: Time.current
+    )
+    store.product_snapshots.create!(
+      shopify_product_id: "gid://shopify/Product/B",
+      title: "Gift Bundle",
+      price: 39.00,
+      inventory_quantity: 4,
+      image_count: 1,
+      image_alt_text_count: 1,
+      captured_at: Time.current
+    )
     sign_in_as(store)
     audit_run = store.audit_runs.create!(
       status: "completed",
@@ -217,7 +257,20 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       overall_score: 70
     )
     [
-      [ "bundle_opportunity", "Bundle opportunities found", "Test a bundle offer.", { affected_product_ids: [ "gid://shopify/Product/A" ] } ],
+      [
+        "bundle_opportunity",
+        "Bundle opportunities found",
+        "Test a bundle offer.",
+        {
+          affected_product_ids: [ "gid://shopify/Product/A" ],
+          bundle_pairs: [
+            {
+              product_ids: [ "gid://shopify/Product/A", "gid://shopify/Product/B" ],
+              frequency: 12
+            }
+          ]
+        }
+      ],
       [ "dead_stock", "Dead stock found", "Discount stale inventory.", { affected_product_ids: [ "gid://shopify/Product/B" ] } ],
       [ "top_customer_silence", "High-value customers have gone silent", "Send win-back offer.", { affected_customer_ids: [ "gid://shopify/Customer/A" ] } ],
       [ "underperforming_product", "Underperforming stocked products found", "Improve content or bundle placement.", { affected_product_ids: [ "gid://shopify/Product/C" ] } ]
@@ -238,13 +291,59 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path
 
     assert_response :success
+    assert_select "section[aria-label='Opportunity dashboard'] h2", "Store health opportunities"
+    assert_select ".audit-callout strong", "Opportunities and next steps"
     assert_select "section[aria-label='Revenue opportunities'] .opportunity-item", 4
     assert_select "section[aria-label='Revenue opportunities'] strong", text: "Bundle opportunities found"
     assert_select "section[aria-label='Revenue opportunities'] strong", text: "Dead stock found"
     assert_select "section[aria-label='Revenue opportunities'] strong", text: "High-value customers have gone silent"
     assert_select "section[aria-label='Revenue opportunities'] strong", text: "Underperforming stocked products found"
-    assert_select "section[aria-label='Revenue opportunities'] p", text: "Test a bundle offer."
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-item p", text: /Test a bundle offer\./
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-label", text: "What this means"
+    assert_select "section[aria-label='Revenue opportunities'] .opportunity-label", text: "What to do"
+    assert_select "section[aria-label='Revenue opportunities'] small", text: /Starter Tote \+ Gift Bundle \(12 orders\)/
+    assert_select "section[aria-label='Revenue opportunities'] small", text: /Why this can work: Starter Tote \+ Gift Bundle already appear together in 12 orders/
     assert_select "section[aria-label='Revenue opportunities'] small", text: /gid:\/\/shopify\/Customer\/A/
+  end
+
+  test "renders action center and lets the merchant complete an action" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+
+    rule = Struct.new(:key) do
+      def call(store:, audit_run:)
+        {
+          title: "SEO issue found",
+          status: "warning",
+          severity: "medium",
+          category: "seo",
+          priority: "medium",
+          impact: "medium",
+          description: "Some products need clearer metadata.",
+          recommendation: "Add meta descriptions to the top products.",
+          details: {
+            affected_product_ids: [ "gid://shopify/Product/1" ],
+            store_id: store.id,
+            audit_run_id: audit_run.id
+          }
+        }
+      end
+    end
+
+    audit_run = AuditRunner.call(store, rules: [ rule.new("seo_gap") ])
+    action = audit_run.audit_actions.sole
+
+    get dashboard_path
+
+    assert_response :success
+    assert_select "section[aria-label='Action center'] h3", "Action center"
+    assert_select "section[aria-label='Action center'] .opportunity-item strong", "SEO issue found"
+    assert_select "section[aria-label='Action center'] button", "Mark done"
+
+    post complete_dashboard_audit_action_path(action)
+
+    assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "action-center")
+    assert_equal "completed", action.reload.status
   end
 
   test "generates and renders win-back email draft" do

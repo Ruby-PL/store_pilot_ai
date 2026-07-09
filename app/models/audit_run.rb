@@ -3,6 +3,7 @@ class AuditRun < ApplicationRecord
 
   belongs_to :store
   has_many :audit_results, dependent: :destroy
+  has_many :audit_actions, dependent: :destroy
 
   validates :status, inclusion: { in: STATUSES }
   validates :started_at, presence: true

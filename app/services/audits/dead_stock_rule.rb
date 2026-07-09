@@ -2,51 +2,33 @@ module Audits
   class DeadStockRule
     KEY = "dead_stock"
     CATEGORY = "revenue"
-    MIN_INVENTORY_QUANTITY = 3
+    STALE_DAYS = 90
+    CRITICAL_DAYS = 180
 
     def key
       KEY
     end
 
     def call(store:, audit_run:)
-      dead_stock_products = stocked_products_without_sales(store)
-      return if dead_stock_products.empty?
+      snapshots = latest_snapshots(store).select { |snapshot| snapshot.inventory_quantity.positive? }
+      return if snapshots.empty?
+
+      candidates = snapshots.select { |snapshot| dead_stock_candidate?(snapshot) }
+      return if candidates.empty?
 
       AuditRunner::Result.new(
         rule_key: KEY,
         status: "warning",
-        title: "Dead stock found",
-        severity: severity_for(dead_stock_products),
+        title: "Dead stock opportunities found",
+        severity: severity_for(candidates),
         category: CATEGORY,
-        description: "#{dead_stock_products.size} stocked product#{'s' unless dead_stock_products.size == 1} have inventory but no synced sales.",
-        recommendation: "Review promotion, discounting, merchandising or bundling for stocked products with no sales.",
-        details: {
-          issue_count: dead_stock_products.size,
-          affected_product_ids: dead_stock_products.map { |product| product.fetch(:shopify_product_id) },
-          estimated_tied_up_value: dead_stock_products.sum { |product| BigDecimal(product.fetch(:estimated_tied_up_value)) }.round(2).to_s,
-          dead_stock_products:
-        }
+        description: description_for(candidates),
+        recommendation: recommendation_for(candidates),
+        details: details_for(candidates)
       )
     end
 
     private
-
-    def stocked_products_without_sales(store)
-      sold_product_ids = store.order_line_item_snapshots.distinct.pluck(:shopify_product_id)
-
-      latest_snapshots(store).filter_map do |snapshot|
-        next if snapshot.inventory_quantity < MIN_INVENTORY_QUANTITY
-        next if sold_product_ids.include?(snapshot.shopify_product_id)
-
-        {
-          shopify_product_id: snapshot.shopify_product_id,
-          title: snapshot.title,
-          inventory_quantity: snapshot.inventory_quantity,
-          price: snapshot.price.to_s,
-          estimated_tied_up_value: (snapshot.price * snapshot.inventory_quantity).round(2).to_s
-        }
-      end
-    end
 
     def latest_snapshots(store)
       store.product_snapshots
@@ -55,12 +37,60 @@ module Audits
         .uniq(&:shopify_product_id)
     end
 
-    def severity_for(dead_stock_products)
-      tied_up_value = dead_stock_products.sum { |product| BigDecimal(product.fetch(:estimated_tied_up_value)) }
-      return "high" if tied_up_value >= 500 || dead_stock_products.size >= 5
-      return "medium" if tied_up_value >= 100 || dead_stock_products.size >= 3
+    def dead_stock_candidate?(snapshot)
+      snapshot.captured_at <= STALE_DAYS.days.ago
+    end
 
-      "low"
+    def severity_for(candidates)
+      return "high" if candidates.any? { |snapshot| snapshot.captured_at <= CRITICAL_DAYS.days.ago }
+
+      tied_up_value(candidates) >= BigDecimal("500") ? "medium" : "low"
+    end
+
+    def description_for(candidates)
+      "#{candidates.size} stocked product#{'s' unless candidates.size == 1} may be tying up #{format_currency(tied_up_value(candidates))} in inventory."
+    end
+
+    def recommendation_for(candidates)
+      if candidates.any? { |snapshot| snapshot.captured_at <= CRITICAL_DAYS.days.ago }
+        "Prioritize a clearance discount, bundle or removal plan for products with no recent movement for 180 days or more."
+      else
+        "Review these products for a targeted discount, bundle placement or merchandising refresh before they become long-term dead stock."
+      end
+    end
+
+    def details_for(candidates)
+      {
+        issue_count: candidates.size,
+        no_sales_90_day_count: candidates.count { |snapshot| snapshot.captured_at <= STALE_DAYS.days.ago },
+        no_sales_180_day_count: candidates.count { |snapshot| snapshot.captured_at <= CRITICAL_DAYS.days.ago },
+        estimated_tied_up_value: tied_up_value(candidates).to_s("F"),
+        affected_products: candidates.map { |snapshot| product_details(snapshot) },
+        affected_product_ids: candidates.map(&:shopify_product_id)
+      }
+    end
+
+    def product_details(snapshot)
+      {
+        shopify_product_id: snapshot.shopify_product_id,
+        title: snapshot.title,
+        inventory_quantity: snapshot.inventory_quantity,
+        price: snapshot.price.to_s("F"),
+        estimated_tied_up_value: stock_value(snapshot).to_s("F"),
+        days_since_signal: ((Time.current - snapshot.captured_at) / 1.day).floor
+      }
+    end
+
+    def tied_up_value(candidates)
+      candidates.sum { |snapshot| stock_value(snapshot) }
+    end
+
+    def stock_value(snapshot)
+      snapshot.price * snapshot.inventory_quantity
+    end
+
+    def format_currency(value)
+      "$#{format('%.2f', value)}"
     end
   end
 end

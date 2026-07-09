@@ -216,9 +216,7 @@ module Shopify
         "id" => id,
         "processedAt" => processed_at,
         "customer" => customer_id && { "id" => customer_id },
-        "refunds" => {
-          "nodes" => refunds
-        },
+        "refunds" => refunds,
         "totalPriceSet" => {
           "shopMoney" => {
             "amount" => amount,
