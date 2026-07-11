@@ -1,6 +1,6 @@
 class Store < ApplicationRecord
   AI_PLAN_LIMITS = {
-    "free" => 25,
+    "free" => 50,
     "pro" => 250,
     "growth" => 500
   }.freeze

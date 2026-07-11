@@ -1,10 +1,24 @@
 class DashboardController < ApplicationController
   before_action :authenticate_shopify_launch!, only: :show
+  helper_method :opportunity_amount
+
+  # Maps the example field key drafted by Ai::AuditExampleGenerator to the
+  # change-set key understood by Shopify::Apply::ProductFields.
+  APPLY_FIELD_MAP = {
+    "meta_title" => "seo_title",
+    "meta_description" => "seo_description",
+    "product_title" => "title",
+    "product_description" => "description_html"
+  }.freeze
 
   def show
     @store = current_store
+    @dashboard_section = dashboard_section
     @last_sync_at = latest_sync_at(@store)
     @metrics = dashboard_metrics(@store)
+    @ai_usage_summary = @store&.ai_usage_summary
+    @ai_requests_remaining = @store&.ai_requests_remaining
+    @ai_plan = @store&.ai_plan&.titleize
     @audit_runs = audit_runs(@store)
     @latest_audit_run = @audit_runs.first
     @selected_audit_run = selected_audit_run(@audit_runs)
@@ -17,6 +31,10 @@ class DashboardController < ApplicationController
     @open_audit_actions = @audit_actions.reject { |action| action.status == "completed" }
     @completed_audit_actions = completed_audit_actions(@selected_audit_run)
     @action_summary = action_summary(@selected_audit_run, @audit_actions)
+    @hero_opportunity = @opportunities.first
+    @priority_opportunities = @opportunities.first(3)
+    @hero_amount = opportunity_amount(@hero_opportunity) || "€240"
+    @activity_runs = @audit_runs.first(4)
     @ai_conversations = ai_conversations(@store)
     @ai_conversation = selected_ai_conversation(@ai_conversations)
     @ai_messages = @ai_conversation&.ai_messages&.order(:created_at) || []
@@ -41,7 +59,33 @@ class DashboardController < ApplicationController
     result = @store.audit_results.find(params[:id])
     Ai::WinBackEmailDraftGenerator.call(result)
 
-    redirect_to dashboard_path(audit_run_id: result.audit_run_id, anchor: "opportunities"), notice: "Win-back email draft generated."
+    redirect_to dashboard_path(section: "opportunities", audit_run_id: result.audit_run_id, anchor: "opportunities"), notice: "Win-back email draft generated."
+  end
+
+  def apply_audit_result
+    @store = current_store
+    return redirect_to dashboard_path, alert: "Connect Shopify first." if @store.blank?
+
+    result = @store.audit_results.find(params[:id])
+    changes = apply_changes_for(result)
+
+    if changes.empty?
+      return redirect_to dashboard_path(section: "opportunities", audit_run_id: result.audit_run_id, anchor: "opportunities"), alert: "Nothing to apply."
+    end
+
+    outcomes = Shopify::Apply::ProductFields.call(@store, changes)
+    applied = outcomes.count { |outcome| outcome.errors.empty? }
+    failed = outcomes.size - applied
+    record_application(result, outcomes, applied)
+
+    notice =
+      if failed.zero?
+        "Applied to #{applied} #{'product'.pluralize(applied)} in Shopify."
+      else
+        "Applied to #{applied} #{'product'.pluralize(applied)}; #{failed} failed."
+      end
+
+    redirect_to dashboard_path(section: "opportunities", audit_run_id: result.audit_run_id, anchor: "opportunities"), notice:
   end
 
   def create_ai_chat_message
@@ -67,7 +111,7 @@ class DashboardController < ApplicationController
       reference_url: params[:reference_url]
     )
 
-    redirect_to dashboard_path(audit_run_id: action.audit_run_id, anchor: "action-center"), notice: "Action marked complete."
+    redirect_to dashboard_path(section: "activity", audit_run_id: action.audit_run_id, anchor: "action-center"), notice: "Action marked complete."
   end
 
   def update_audit_action
@@ -86,7 +130,7 @@ class DashboardController < ApplicationController
       notice = "Action updated."
     end
 
-    redirect_to dashboard_path(audit_run_id: action.audit_run_id, anchor: "action-center"), notice:
+    redirect_to dashboard_path(section: "activity", audit_run_id: action.audit_run_id, anchor: "action-center"), notice:
   end
 
   private
@@ -218,5 +262,60 @@ class DashboardController < ApplicationController
       previous_score_delta: audit_run.previous_score_delta,
       completed_at: audit_run.completed_at
     }
+  end
+
+  def opportunity_amount(result)
+    return if result.blank?
+
+    raw_value =
+      result.details["recoverable_revenue"] ||
+      result.details["estimated_lost_revenue"] ||
+      result.details["estimated_monthly_impact"] ||
+      result.details["estimated_impact"] ||
+      result.details["lost_revenue"]
+
+    return if raw_value.blank?
+
+    amount = BigDecimal(raw_value.to_s)
+    currency = @store&.orders_currency.presence || @store&.currency.presence || "EUR"
+
+    format_money(amount, currency)
+  rescue ArgumentError
+    nil
+  end
+
+  def apply_changes_for(result)
+    allowed_ids = Array(result.details.dig("examples", "items")).filter_map { |item| item["product_id"] }
+    rows = params[:apply].respond_to?(:values) ? params[:apply].values : []
+
+    rows.filter_map do |row|
+      product_id = row[:product_id].to_s
+      next unless allowed_ids.include?(product_id)
+
+      change = { "product_id" => product_id }
+      APPLY_FIELD_MAP.each do |field_key, change_key|
+        value = row[field_key].to_s.strip
+        change[change_key] = value if value.present?
+      end
+      change if change.size > 1
+    end
+  end
+
+  def record_application(result, outcomes, applied_count)
+    result.update!(details: result.details.merge(
+      "applied" => {
+        "count" => applied_count,
+        "at" => Time.current.iso8601,
+        "results" => outcomes.map { |outcome| { "product_id" => outcome.product_id, "applied" => outcome.applied, "errors" => outcome.errors } }
+      }
+    ))
+  end
+
+  def dashboard_section
+    section = params[:section].to_s
+    return "today" if section.blank?
+    return section if %w[today opportunities store activity].include?(section)
+
+    "today"
   end
 end

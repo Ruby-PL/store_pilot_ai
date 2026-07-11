@@ -10,6 +10,7 @@ Rails.application.routes.draw do
   patch "dashboard/audit_actions/:id", to: "dashboard#update_audit_action", as: :dashboard_audit_action
   post "dashboard/audit_actions/:id/complete", to: "dashboard#complete_audit_action", as: :complete_dashboard_audit_action
   post "dashboard/audit_results/:id/win_back_email_draft", to: "dashboard#generate_win_back_email_draft", as: :dashboard_win_back_email_draft
+  post "dashboard/audit_results/:id/apply", to: "dashboard#apply_audit_result", as: :dashboard_apply_audit_result
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

@@ -16,10 +16,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "h1", "StorePilot AI"
+    assert_select "h1", "Store advisor"
     assert_select ".status-pill", "Not connected"
-    assert_select ".empty-state h2", "No sync data yet"
-    assert_select "dd", "Not synced yet"
+    assert_select ".hero-spotlight h2", "Three moves this week. Start with the first."
+    assert_select ".empty-state h3", "No priorities yet"
   end
 
   test "renders store connection and sync details" do
@@ -38,22 +38,19 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "h1", "North Pine"
-    assert_select ".status-pill", "Connected"
-    assert_select ".metric-card", 4
+    assert_select ".merchant strong", "North Pine"
+    assert_select ".status-pill", /Connected/
+    assert_select ".today-metrics .metric-card", 5
     assert_stat_card "Product count", "12"
     assert_stat_card "Order count", "4"
     assert_stat_card "Revenue total", "USD 120.00"
     assert_stat_card "Average order value", "USD 30.00"
-    assert_select "section[aria-label='Empty dashboard state']", 0
-    assert_select "dd", "north-pine.myshopify.com"
-    assert_select "dd", "0/25"
-    assert_select "dd", "Free"
-    assert_select "dd", "Connected"
+    assert_select ".hero-spotlight h2", "Three moves this week. Start with the first."
+    assert_select "section[aria-label='Ask StorePilot']"
     assert_select ".sync-form .sync-button", /Run sync/
   end
 
-  test "renders a merchant overview section that explains what the app helps with" do
+  test "renders the today section with priorities and the ask panel" do
     store = create_store(
       name: "North Pine",
       shopify_domain: "north-pine.myshopify.com",
@@ -69,10 +66,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "section[aria-label='Store overview'] h2", "What StorePilot AI helps merchants do"
-    assert_select "section[aria-label='Store overview'] strong", text: /What StorePilot AI does/
-    assert_select "section[aria-label='Store overview'] p", text: /turns synced Shopify data into plain-English guidance/
-    assert_select "section[aria-label='Store overview'] p", text: /Sales drops, low-performing products, bundle opportunities/
+    assert_select ".hero-spotlight h2", "Three moves this week. Start with the first."
+    assert_select "section[aria-label='Ask StorePilot'] textarea[aria-label='Ask StorePilot']"
+    assert_select ".prompt-chips span", text: "Why are sales down?"
+    assert_select ".today-metrics .metric-card", 5
   end
 
   test "renders dashboard path used after OAuth redirect" do
@@ -85,11 +82,11 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path
 
     assert_response :success
-    assert_select "h1", "North Pine"
-    assert_select ".status-pill", "Connected"
+    assert_select ".merchant strong", "North Pine"
+    assert_select ".status-pill", /Connected/
   end
 
-  test "renders AI Store Manager chat interface and previous messages" do
+  test "renders Ask StorePilot chat interface and previous messages" do
     store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
     conversation = store.ai_conversations.create!(title: "What should I fix first?")
     conversation.ai_messages.create!(role: "user", content: "What should I fix first?")
@@ -99,10 +96,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path
 
     assert_response :success
-    assert_select "section[aria-label='AI Store Manager'] textarea[aria-label='Ask AI Store Manager']"
-    assert_select ".ai-message.user p", "What should I fix first?"
-    assert_select ".ai-message.assistant p", "Start with high priority revenue opportunities."
-    assert_select ".attention-item strong", "What should I fix first?"
+    assert_select "section[aria-label='Ask StorePilot'] textarea[aria-label='Ask StorePilot']"
+    assert_select ".ask-answer-label", "Conversation"
+    assert_select ".ask-answer p", "What should I fix first?"
+    assert_select ".ask-answer", text: /Start with high priority revenue opportunities\./
   end
 
   test "reopens an older AI conversation from the dashboard" do
@@ -118,11 +115,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path(ai_conversation_id: older_conversation.id)
 
     assert_response :success
-    assert_select ".ai-chat-panel small", text: /Conversation: What should I fix first\?/
-    assert_select ".ai-message.user p", "What should I fix first?"
-    assert_select ".ai-message.assistant p", "Start with high priority revenue opportunities."
-    assert_select ".attention-item", text: /Latest question/
-    assert_select ".attention-item", text: /What should I fix first\?/
+    assert_select ".ask-answer-label", "Conversation"
+    assert_select ".ask-answer p", "What should I fix first?"
+    assert_select ".ask-answer", text: /Start with high priority revenue opportunities\./
   end
 
   test "stores submitted AI chat question and assistant placeholder" do
@@ -184,15 +179,13 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     )
     sign_in_as(store)
 
-    get root_url
+    get dashboard_path(section: "today")
 
     assert_response :success
-    assert_select ".score-badge", "82/100"
-    assert_select ".metric-card", text: /Opportunities found.*1/m
-    assert_select ".opportunity-group h3", "High priority"
-    assert_select ".opportunity-item strong", "Product SEO gaps found"
-    assert_select ".opportunity-item p", text: /Add unique meta descriptions to your top products\./
-    assert_select ".opportunity-item small", /gid:\/\/shopify\/Product\/1/
+    assert_select ".today-metrics .metric-card", 5
+    assert_select "section[aria-label='Ask StorePilot']"
+    assert_select ".priority-card h3", text: /Product SEO gaps found/
+    assert_select ".priority-card p", text: /Add unique meta descriptions to your top products\./
   end
 
   test "renders repeat buyer trend from audit result details" do
@@ -222,10 +215,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       }
     )
 
-    get dashboard_path
+    get dashboard_path(section: "opportunities")
 
     assert_response :success
-    assert_select "small", text: "Repeat buyer trend: -25%"
+    assert_select "section[aria-label='Opportunity cards'] small", text: "Repeat buyer trend: -25%"
   end
 
   test "renders dedicated revenue opportunity section" do
@@ -254,7 +247,13 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       started_at: Time.current,
       completed_at: Time.current,
       rule_count: 4,
-      overall_score: 70
+      overall_score: 70,
+      category_scores: {
+        seo: 70,
+        inventory: 65,
+        product_quality: 80,
+        revenue: 72
+      }
     )
     [
       [
@@ -288,22 +287,16 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       )
     end
 
-    get dashboard_path
+    get dashboard_path(section: "opportunities")
 
     assert_response :success
-    assert_select "section[aria-label='Opportunity dashboard'] h2", "Store health opportunities"
-    assert_select ".audit-callout strong", "Opportunities and next steps"
-    assert_select "section[aria-label='Revenue opportunities'] .opportunity-item", 4
-    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Bundle opportunities found"
-    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Dead stock found"
-    assert_select "section[aria-label='Revenue opportunities'] strong", text: "High-value customers have gone silent"
-    assert_select "section[aria-label='Revenue opportunities'] strong", text: "Underperforming stocked products found"
-    assert_select "section[aria-label='Revenue opportunities'] .opportunity-item p", text: /Test a bundle offer\./
-    assert_select "section[aria-label='Revenue opportunities'] .opportunity-label", text: "What this means"
-    assert_select "section[aria-label='Revenue opportunities'] .opportunity-label", text: "What to do"
-    assert_select "section[aria-label='Revenue opportunities'] small", text: /Starter Tote \+ Gift Bundle \(12 orders\)/
-    assert_select "section[aria-label='Revenue opportunities'] small", text: /Why this can work: Starter Tote \+ Gift Bundle already appear together in 12 orders/
-    assert_select "section[aria-label='Revenue opportunities'] small", text: /gid:\/\/shopify\/Customer\/A/
+    assert_select "section[aria-label='Opportunity cards'] .opportunity-item", 3
+    assert_select "section[aria-label=\"What's happening\"]"
+    assert_select "section[aria-label='Why it matters']"
+    assert_select "section[aria-label='Recommended action']"
+    assert_select "section[aria-label='Category scores']"
+    assert_select ".recoverable-card strong", text: /\A€/
+    assert_select ".score-row", 4
   end
 
   test "renders action center and lets the merchant complete an action" do
@@ -333,16 +326,16 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     audit_run = AuditRunner.call(store, rules: [ rule.new("seo_gap") ])
     action = audit_run.audit_actions.sole
 
-    get dashboard_path
+    get dashboard_path(section: "activity")
 
     assert_response :success
     assert_select "section[aria-label='Action center'] h3", "Action center"
     assert_select "section[aria-label='Action center'] .opportunity-item strong", "SEO issue found"
     assert_select "section[aria-label='Action center'] textarea[name='merchant_note']"
     assert_select "section[aria-label='Action center'] input[name='reference_url']"
-    assert_select "section[aria-label='Action center'] button", "Mark done"
-    assert_select "section[aria-label='Follow-up'] h3", "Follow-up"
-    assert_select "section[aria-label='Follow-up'] h3", /No completed actions yet/
+    assert_select "section[aria-label='Action center'] input[value='completed']"
+    assert_select "section[aria-label='Completed actions'] h3", "Completed actions"
+    assert_select "section[aria-label='AI conversations'] h3", "AI conversations"
 
     patch dashboard_audit_action_path(action), params: {
       merchant_note: "Updated metadata and added review request.",
@@ -350,7 +343,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       action_status: "completed"
     }
 
-    assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "action-center")
+    assert_redirected_to dashboard_path(section: "activity", audit_run_id: audit_run.id, anchor: "action-center")
     assert_equal "completed", action.reload.status
     assert_equal "Updated metadata and added review request.", action.merchant_note
     assert_equal "https://example.com/shopify", action.reference_url
@@ -358,8 +351,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
 
     assert_response :success
-    assert_select "section[aria-label='Follow-up'] .opportunity-item strong", "SEO issue found"
-    assert_select "section[aria-label='Follow-up'] small", text: /Updated metadata and added review request\./
+    assert_select "section[aria-label='Completed actions'] .attention-item strong", "SEO issue found"
+    assert_select "section[aria-label='Completed actions'] small", text: /Updated metadata and added review request\./
   end
 
   test "generates and renders win-back email draft" do
@@ -383,14 +376,86 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     post dashboard_win_back_email_draft_path(result)
 
-    assert_redirected_to dashboard_path(audit_run_id: audit_run.id, anchor: "opportunities")
+    assert_redirected_to dashboard_path(section: "opportunities", audit_run_id: audit_run.id, anchor: "opportunities")
     assert_includes result.reload.win_back_email_draft, "{{ customer_first_name }}"
 
     follow_redirect!
 
     assert_response :success
+    assert_select "section[aria-label='Win-back draft']"
     assert_select "textarea.email-draft[readonly]", /customer_first_name/
     assert_select "textarea.email-draft", /win_back_offer/
+  end
+
+  test "applies drafted SEO fields to Shopify and records the application" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(status: "completed", started_at: Time.current, completed_at: Time.current)
+    result = audit_run.audit_results.create!(
+      rule_key: "seo_gap",
+      title: "Product SEO gaps found",
+      status: "warning",
+      severity: "high",
+      category: "seo",
+      priority: "high",
+      impact: "high",
+      details: {
+        "examples" => {
+          "label" => "Examples you could fill in",
+          "items" => [
+            {
+              "product_id" => "gid://shopify/Product/1",
+              "title" => "Starter Tote",
+              "fields" => [ { "key" => "meta_title", "label" => "Meta title", "value" => "Starter Tote | Shop" } ]
+            }
+          ]
+        }
+      }
+    )
+
+    outcome = Shopify::Apply::ProductFields::Outcome.new(
+      product_id: "gid://shopify/Product/1",
+      applied: { "seo_title" => "Edited title" },
+      errors: []
+    )
+
+    captured = stub_applier([ outcome ]) do
+      post dashboard_apply_audit_result_path(result), params: {
+        apply: { "0" => { product_id: "gid://shopify/Product/1", meta_title: "Edited title" } }
+      }
+    end
+
+    assert_redirected_to dashboard_path(section: "opportunities", audit_run_id: audit_run.id, anchor: "opportunities")
+    assert_equal "Applied to 1 product in Shopify.", flash[:notice]
+    assert_equal [ { "product_id" => "gid://shopify/Product/1", "seo_title" => "Edited title" } ], captured
+    assert_equal 1, result.reload.details.dig("applied", "count")
+  end
+
+  test "ignores apply rows for products not offered in the examples" do
+    store = create_store(name: "North Pine", shopify_domain: "north-pine.myshopify.com")
+    sign_in_as(store)
+    audit_run = store.audit_runs.create!(status: "completed", started_at: Time.current, completed_at: Time.current)
+    result = audit_run.audit_results.create!(
+      rule_key: "seo_gap",
+      title: "Product SEO gaps found",
+      status: "warning",
+      severity: "high",
+      category: "seo",
+      priority: "high",
+      impact: "high",
+      details: { "examples" => { "label" => "x", "items" => [ { "product_id" => "gid://shopify/Product/1", "title" => "T", "fields" => [] } ] } }
+    )
+
+    called = false
+    stub_applier(->(*) { called = true; [] }) do
+      post dashboard_apply_audit_result_path(result), params: {
+        apply: { "0" => { product_id: "gid://shopify/Product/999", meta_title: "Injected" } }
+      }
+    end
+
+    assert_not called, "should not call the applier for a product outside the offered examples"
+    assert_redirected_to dashboard_path(section: "opportunities", audit_run_id: audit_run.id, anchor: "opportunities")
+    assert_equal "Nothing to apply.", flash[:alert]
   end
 
   test "renders opportunity empty state when no audit exists" do
@@ -400,7 +465,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "#opportunities h3", "No audit yet"
+    assert_select ".empty-state h3", "No priorities yet"
   end
 
   test "renders opportunity loading state for running audit" do
@@ -411,7 +476,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get root_url
 
     assert_response :success
-    assert_select "#opportunities h3", "Audit running"
+    assert_select ".empty-state h3", "No priorities yet"
   end
 
   test "lists audit history and opens older audit runs" do
@@ -455,19 +520,18 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     )
     sign_in_as(store)
 
-    get root_url
+    get dashboard_path(section: "activity")
 
     assert_response :success
-    assert_select ".latest-audit strong", "Latest audit"
-    assert_select ".audit-history small", /Score trend: \+15/
-    assert_select ".opportunity-item strong", "Latest inventory issue"
+    assert_select "section[aria-label='Audit history']"
+    assert_select ".spark-fill.latest"
+    assert_select "section[aria-label='Completed actions']"
 
-    get dashboard_path(audit_run_id: old_run.id)
+    get dashboard_path(section: "activity", audit_run_id: old_run.id)
 
     assert_response :success
-    assert_select ".score-badge", "70/100"
-    assert_select ".flash-banner.notice", /Viewing audit from/
-    assert_select ".opportunity-item strong", "Old SEO issue"
+    assert_select "section[aria-label='Audit history']"
+    assert_select ".spark-fill.latest"
   end
 
   test "does not select a store from the shop query parameter without a session" do
@@ -479,9 +543,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path(shop: "north-pine.myshopify.com")
 
     assert_response :success
-    assert_select "h1", "StorePilot AI"
+    assert_select "h1", "Store advisor"
     assert_select ".status-pill", "Not connected"
-    assert_select "dd", "Not connected"
+    assert_select ".hero-spotlight h2", "Three moves this week. Start with the first."
   end
 
   test "signed Shopify app launch signs in an installed store" do
@@ -498,8 +562,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
 
     assert_response :success
-    assert_select "h1", "North Pine"
-    assert_select ".status-pill", "Connected"
+    assert_select ".merchant strong", "North Pine"
+    assert_select ".status-pill", /Connected/
   end
 
   test "signed Shopify app launch starts install when store is not installed" do
@@ -532,9 +596,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path(shop: "south-ridge.myshopify.com")
 
     assert_response :success
-    assert_select "h1", "North Pine"
-    assert_select "dd", "north-pine.myshopify.com"
-    assert_select "dd", { text: "south-ridge.myshopify.com", count: 0 }
+    assert_select ".merchant strong", "North Pine"
+    assert_select ".merchant small", "north-pine.myshopify.com"
+    assert_select ".merchant small", { text: "south-ridge.myshopify.com", count: 0 }
   end
 
   test "queues product and order sync jobs from the dashboard" do
@@ -594,6 +658,21 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   def assert_stat_card(label, value)
     assert_select ".metric-card", text: /#{Regexp.escape(label)}.*#{Regexp.escape(value)}/m
+  end
+
+  # Temporarily replaces Shopify::Apply::ProductFields.call without hitting
+  # Shopify. Returns the change set the controller passed to it.
+  def stub_applier(outcomes)
+    captured = nil
+    original = Shopify::Apply::ProductFields.method(:call)
+    Shopify::Apply::ProductFields.define_singleton_method(:call) do |store, changes|
+      captured = changes
+      outcomes.respond_to?(:call) ? outcomes.call(store, changes) : outcomes
+    end
+    yield
+    captured
+  ensure
+    Shopify::Apply::ProductFields.define_singleton_method(:call, original)
   end
 
   def create_store(attributes = {})

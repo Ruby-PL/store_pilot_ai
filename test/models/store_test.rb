@@ -70,7 +70,7 @@ class StoreTest < ActiveSupport::TestCase
       ai_requests_counted_on: 1.month.ago.to_date
     )
 
-    assert_equal "0/25", store.ai_usage_summary
+    assert_equal "0/50", store.ai_usage_summary
     assert store.consume_ai_request!
     assert_equal 1, store.reload.ai_requests_count
     assert_equal Time.current.beginning_of_month.to_date, store.ai_requests_counted_on
